@@ -62,6 +62,10 @@ v8::Local<v8::Object> createV8ObjectForNPObject(NPObject*, NPObject* root);
 // cannot be referred to.
 void forgetV8ObjectForNPObject(NPObject*);
 
+// De-associate an NPObject with the current JS wrapper, but preserve the backward connection from the wrapper to NPObject.
+// This allows to have a single NPObject to be called from several wrappers, so each context can have its own wrapper.
+void dropV8WrapperForNPObject(NPObject*);
+
 } // namespace WebCore
 
 #endif // V8NPObject_h

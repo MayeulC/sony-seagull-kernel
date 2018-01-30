@@ -814,7 +814,7 @@ static  eap_proxy_status eap_proxy_process(eap_proxy_sm  *eap_proxy,
 	if ((EAP_CODE_REQUEST == hdr->code) &&
 		(EAP_TYPE_IDENTITY == eapReqData[4])) {
 
-		eap_proxy_eapol_sm_set_bool(eap_proxy, EAPOL_eapRestart, FALSE);
+		//eap_proxy_eapol_sm_set_bool(eap_proxy, EAPOL_eapRestart, FALSE); //CONN-FY-FixFastReauth-00
 
 		if(eap_proxy_build_identity(eap_proxy, hdr->identifier, eap_sm)) {
 			eap_proxy->proxy_state = EAP_PROXY_IDENTITY;
@@ -1101,6 +1101,8 @@ static eap_proxy_status eap_proxy_qmi_response_wait(eap_proxy_sm *eap_proxy)
 		return EAP_PROXY_FAILURE;
 	}
 	eap_proxy->qmi_state = QMI_STATE_IDLE;
+
+	eap_proxy_eapol_sm_set_bool(eap_proxy, EAPOL_eapRestart, FALSE); //CONN-FY-FixFastReauth-00
 
 	return EAP_PROXY_SUCCESS;
 }

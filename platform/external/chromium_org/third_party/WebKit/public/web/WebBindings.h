@@ -135,6 +135,11 @@ public:
     // _NPN_UnregisterObject
     WEBKIT_EXPORT static void unregisterObject(NPObject*);
 
+    // Unlike unregisterObject, only drops the V8 wrapper object,
+    // not touching the NPObject itself, except for decrementing
+    // its references counter.
+    WEBKIT_EXPORT static void dropV8WrapperForObject(NPObject*);
+
     // NPN_UTF8FromIdentifier
     WEBKIT_EXPORT static NPUTF8* utf8FromIdentifier(NPIdentifier);
 
