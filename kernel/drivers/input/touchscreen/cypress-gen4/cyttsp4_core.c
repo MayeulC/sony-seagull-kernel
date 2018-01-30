@@ -2701,7 +2701,7 @@ static void cyttsp4_watchdog_work(struct work_struct *work)
 	int rc;
 
 	if (cd == NULL) {
-		dev_err(cd->dev, "%s: NULL context pointer\n", __func__);
+		printk("%s: NULL context pointer\n", __func__);
 		return;
 	}
 
@@ -3765,8 +3765,11 @@ static ssize_t cyttsp4_easy_wakeup_gesture_store(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	if (value > 0xFF && value < 0)
-		return -EINVAL;
+	if (value > 0xFF)
+	{
+		ret = -EINVAL;
+		return ret;
+	}
 
 	pm_runtime_get_sync(dev);
 

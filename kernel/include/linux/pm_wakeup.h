@@ -86,10 +86,11 @@ struct pms_wake_lock {
 	struct list_head	link;
 	char				*pid;
 	char				*tag;
+	ktime_t				acquire_time; //CORE-BH-PMSWakelockInfo-02+
 };
 
  void add_pms_wakelock_info(char *pid, char * tag);
- void remove_pms_wakelock_info(void);
+ void remove_pms_wakelock_info(char *pid, char * tag); //CORE-BH-PMSWakelockInfo-02*
  #endif
 //CORE-BH-PMSWakelockInfo-01*]
 

@@ -1,10 +1,10 @@
 /*
  *  bootmem - A boot-time physical memory allocator and configurator
  *
+ *  Copyright(C) 2011-2013 Foxconn International Holdings, Ltd. All rights reserved.
  *  Copyright (C) 1999 Ingo Molnar
  *                1999 Kanoj Sarcar, SGI
  *                2008 Johannes Weiner
- *  Copyright(C) 2011-2013 Foxconn International Holdings, Ltd. All rights reserved.
  *
  * Access to this subsystem has to be serialized externally (which is true
  * for the boot process anyway).

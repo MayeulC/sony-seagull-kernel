@@ -20,56 +20,7 @@
 	serial@f991f000 {
 		status = "ok";
 	};
-	/* PERI-FG-SENSOR_PORTING-00+[ */
-	i2c@f9924000 { /* BLSP1 QUP2 */
 
-		bosch@10 {
-			compatible = "bosch,bma2x2";
-			reg = <0x10>;
-			bosch,int_pin = <&msmgpio 63 0x00>;
-			bosch,layout=<0x0>;
-			bmavdd-supply = <&pm8226_l19>;
-			bosch,vdd-current-level = <1 210>;
-		};
-
-		bosch@12 {
-			compatible = "bosch,bmm050";
-			reg = <0x12>;
-			bosch,layout=<0x0>;
-			bmmvdd-supply = <&pm8226_l19>;
-			bosch,vdd-current-level = <1 255>;
-		};
-
-		sensortek@48 {
-			compatible = "sensortek,stk3x1x";
-			reg = <0x48>;
-			stkvdd-supply = <&pm8226_l19>;/* PERI-BJ-Add_Regular_Optimum_feature-00+ */
-			sensortek,vdd-current-level = <1 120>;/* PERI-BJ-Add_Regular_Optimum_feature-00+ */
-			sensortek,slave-addr = <0x48>;
-			sensortek,int_pin = <&msmgpio 65 0x00>;
-			sensortek,state_reg = <0x0>;
-			sensortek,psctrl_reg = <0x31>;
-			sensortek,alsctrl_reg = <0x38>;
-			sensortek,ledctrl_reg = <0xFF>;
-			sensortek,wait_reg = <0x7>;
-			sensortek,ps_thd_h = <0x370>;//880
-			sensortek,ps_thd_l = <0x33E>;//830
-			sensortek,ps_thd_h_dp = <0x3D4>;//980
-			sensortek,ps_thd_l_dp = <0x3A2>;//930
-			sensortek,ps_thd_h_sp = <0x370>;//880
-			sensortek,ps_thd_l_sp = <0x33E>;//830
-			sensortek,transmittance = <0x2BC>;//700
-		};
-
-		bosch@68 {
-			compatible = "bosch,bmg160";
-			reg = <0x68>;
-			bosch,layout=<0x5>;
-			bmgvdd-supply = <&pm8226_l19>;
-			bosch,vdd-current-level = <1 255>;
-		};
-	};
-	/* PERI-FG-SENSOR_PORTING-00+] */
 	i2c@f9927000 { /* BLSP1 QUP5 */
 		synaptics@20 {
 			compatible = "synaptics,rmi4";

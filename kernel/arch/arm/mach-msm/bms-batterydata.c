@@ -200,6 +200,7 @@ struct bms_battery_data palladium_1500_data = {
 	.pc_temp_ocv_lut		= &pc_temp_ocv,
 	.rbatt_sf_lut			= &rbatt_sf,
 	.default_rbatt_mohm	= 240,
+	.flat_ocv_threshold_uv	= 3800000,
 };
 #endif
 //CORE-DL-ImportBatData-00 +]

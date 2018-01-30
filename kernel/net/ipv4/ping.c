@@ -909,7 +909,7 @@ int ping_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 				*(__be32 *)ip6 & IPV6_FLOWINFO_MASK;
 
 		sin6->sin6_scope_id = ipv6_iface_scope_id(&sin6->sin6_addr,
-			IP6CB(skb)->iif);
+							  IP6CB(skb)->iif);
 
 		if (inet6_sk(sk)->rxopt.all)
 			pingv6_ops.datagram_recv_ctl(sk, msg, skb);

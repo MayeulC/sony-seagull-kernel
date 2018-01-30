@@ -1832,7 +1832,7 @@ static void do_nsleep(unsigned int nsecs, struct hrtimer_sleeper *sleeper, int s
 	 * This is really just a reworked and simplified verson
 	 * of do_nanosleep().
 	 */
-	hrtimer_init(&sleeper->timer, CLOCK_MONOTONIC, mode);
+	hrtimer_init_on_stack(&sleeper->timer, CLOCK_MONOTONIC, mode);
 	sleeper->timer.node.expires = ktime_set(0, nsecs);
 	hrtimer_init_sleeper(sleeper, current);
 

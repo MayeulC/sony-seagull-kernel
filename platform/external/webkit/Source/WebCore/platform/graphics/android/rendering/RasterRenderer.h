@@ -33,7 +33,7 @@
 #include "SkRect.h"
 
 class SkCanvas;
-class SkDevice;
+class SkBaseDevice;
 
 namespace WebCore {
 

@@ -505,6 +505,7 @@ extern void clear_all_modem_pwron_cause (void);
 /* MTD-CORE-EL-handle_SSR-02+] */
 
 extern unsigned int latest_modem_err;
+extern unsigned int fih_power_on_cause; /* CORE-DY-HWWD-00+ */
 
 static ssize_t fih_modem_crash_info_show(struct kobject *kobj, struct kobj_attribute *attr, char * buf)
 {
@@ -512,6 +513,7 @@ static ssize_t fih_modem_crash_info_show(struct kobject *kobj, struct kobj_attri
 		ERR_TYPE_MFE = 0,
 		ERR_TYPE_SWD,
 		ERR_TYPE_FWD,
+		ERR_TYPE_HWD,
 		ERR_TYPE_NA,
 		ERR_TYPE_MAX
 	};
@@ -520,7 +522,7 @@ static ssize_t fih_modem_crash_info_show(struct kobject *kobj, struct kobj_attri
 	char *fatal_error_buffer_virt_addr;
 	unsigned int power_on_cause;
 
-	char *err_string[ERR_TYPE_MAX] = { "Modem SW_WD Reset", "Modem SW_WD Reset", "Modem FW_WD Reset", "N/A"};
+	char *err_string[ERR_TYPE_MAX] = { "Modem SW_WD Reset", "Modem SW_WD Reset", "Modem FW_WD Reset", "HW_WD timeout", "N/A"};
 	enum err_type etype = ERR_TYPE_NA;
 	char *err_reason = err_string[ERR_TYPE_NA];
 
@@ -539,12 +541,17 @@ static ssize_t fih_modem_crash_info_show(struct kobject *kobj, struct kobj_attri
 		etype = ERR_TYPE_SWD;
 	} else if (power_on_cause & MTD_PWR_ON_EVENT_MODEM_FW_WD_RESET) {
 		etype = ERR_TYPE_FWD;
+/* CORE-EL-HWWD-00*[ */
+	} else if (fih_power_on_cause & MTD_PWR_ON_EVENT_HW_WD_RESET) {
+		etype = ERR_TYPE_HWD;
+
+		/* read clear */
+		fih_power_on_cause &= ~MTD_PWR_ON_EVENT_HW_WD_RESET;
 	}
+/* CORE-EL-HWWD-00*] */
 
-	if ((fatal_error_buffer_virt_addr =  (char *) get_fatal_error_buffer_virt_addr()))  {
-
-		if (etype < ERR_TYPE_NA)
-/* MTD-CORE-EL-handle_SSR-02*[ */			
+	if (etype < ERR_TYPE_HWD) {
+		if ((fatal_error_buffer_virt_addr =  (char *) get_fatal_error_buffer_virt_addr())) {
 			if (!strncmp(fatal_error_buffer_virt_addr, MODEM_ERR_TAG, MODEM_ERR_TAG_LEN)) {
 				err_reason = &fatal_error_buffer_virt_addr[MODEM_ERR_TAG_LEN];
 
@@ -554,12 +561,12 @@ static ssize_t fih_modem_crash_info_show(struct kobject *kobj, struct kobj_attri
 					printk(KERN_ERR "This is venus sub-system, clear power on cause here\n");
 				}
 			}
-/* MTD-CORE-EL-handle_SSR-02*] */
-
-		ret = snprintf(buf, PAGE_SIZE, "%s: %s", err_string[etype], err_reason);
+		}
+		else
+			pr_err("%s fatal error: fatal_error_buffer_virt_addr is Null!\n", __func__);
 	}
-	else
-		pr_err("%s fatal error: fatal_error_buffer_virt_addr is Null!\n", __func__);
+
+	ret = snprintf(buf, PAGE_SIZE, "%s: %s", err_string[etype], err_reason);
 	
 	return (ret);
 }

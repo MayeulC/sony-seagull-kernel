@@ -102,24 +102,29 @@ static void _kgsl_destroy_pagetable(struct kgsl_pagetable *pagetable)
 }
 
 static void kgsl_destroy_pagetable(struct kref *kref)
-{	
+	
+	
+{
 	struct kgsl_pagetable *pagetable = container_of(kref,
 		struct kgsl_pagetable, refcount);
 	unsigned long flags;
-	
+
 	spin_lock_irqsave(&kgsl_driver.ptlock, flags);
 	list_del(&pagetable->list);
 	spin_unlock_irqrestore(&kgsl_driver.ptlock, flags);
-	
+
 	_kgsl_destroy_pagetable(pagetable);
 }
+
 static void kgsl_destroy_pagetable_locked(struct kref *kref)
 {
 	struct kgsl_pagetable *pagetable = container_of(kref,
 		struct kgsl_pagetable, refcount);
 	
-	list_del(&pagetable->list);
 	
+
+	list_del(&pagetable->list);
+
 	_kgsl_destroy_pagetable(pagetable);
 }
 
@@ -153,12 +158,12 @@ kgsl_get_pagetable(unsigned long name)
 static struct kgsl_pagetable *
 _get_pt_from_kobj(struct kobject *kobj)
 {
-	unsigned long ptname;
+	unsigned int ptname;
 
 	if (!kobj)
 		return NULL;
 
-	if (sscanf(kobj->name, "%ld", &ptname) != 1)
+	if (kstrtou32(kobj->name, 0, &ptname))
 		return NULL;
 
 	return kgsl_get_pagetable(ptname);
@@ -400,6 +405,10 @@ int kgsl_mmu_init(struct kgsl_device *device)
 	status = kgsl_allocate_contiguous(&mmu->setstate_memory, PAGE_SIZE);
 	if (status)
 		return status;
+
+	/* Mark the setstate memory as read only */
+	mmu->setstate_memory.flags |= KGSL_MEMFLAGS_GPUREADONLY;
+
 	kgsl_sharedmem_set(device, &mmu->setstate_memory, 0, 0,
 				mmu->setstate_memory.size);
 

@@ -3,8 +3,8 @@
  *
  * A Logging Subsystem
  *
+ * Copyright(C) 2011-2013 Foxconn International Holdings, Ltd. All rights reserved.
  * Copyright (C) 2007-2008 Google, Inc.
- * Copyright (C) 2011-2013 Foxconn International Holdings, Ltd. All rights reserved.
  *
  * Robert Love <rlove@google.com>
  *

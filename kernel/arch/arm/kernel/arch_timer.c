@@ -495,7 +495,7 @@ static int __init arch_timer_mem_register(void)
 					0xf, 0x7fffffff);
 
 	err = request_irq(arch_timer_spi, arch_timer_handler_mem,
-			IRQF_TIMER, "arch_timer", clk);  /* CORE-HC-Watchdog_Bark-00 */
+			IRQF_TIMER, "arch_timer", clk);
 
 	return err;
 }

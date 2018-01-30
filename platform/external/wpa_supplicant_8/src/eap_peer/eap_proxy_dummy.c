@@ -1195,6 +1195,11 @@ static Boolean eap_proxy_build_identity(eap_proxy_sm *eap_proxy, u8 id, struct e
 	eap_auth_start.user_id_len = 0;
 	eap_auth_start.eap_meta_id = 0;
 	eap_auth_start.eap_method_mask = QMI_EAP_METHOD_MASK_UNSET;
+	//CONN-FY-Check_EAPmethods-00
+	if (config->eap_methods == NULL) {
+        wpa_printf(MSG_ERROR, "config->eap_methods is NULL"); 
+	}
+	//CONN-FY-Check_EAPmethods-00
 	m = config->eap_methods;
 	for (idx = 0; m[idx].vendor != EAP_VENDOR_IETF ||
 			 m[idx].method != EAP_TYPE_NONE; idx++) {

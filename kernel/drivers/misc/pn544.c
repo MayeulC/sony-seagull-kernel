@@ -44,6 +44,7 @@
 #include <linux/spinlock.h>
 #include <linux/pn544.h>
 #include <linux/of_gpio.h>
+#include <linux/wakelock.h>
 //FIH-SW2-PERIPHERAL-BJ-NFC_Porting-00*[
 //TODO:replace and include corresponding head file for VEN/IRQ/FIRM I/O configuration
 //#include <plat/gpio-core.h>
@@ -78,6 +79,7 @@ struct pn544_dev
 	spinlock_t			irq_enabled_lock;
 	unsigned int		pn544_sys_info; //MTD-SW3-PERIPHERAL-OwenHuang-NFC_DBG_MSG-00+
 	atomic_t            balance_wake_irq; //PERI-OH-NFC_Unbalance_IRQ_Wake-00+
+	struct wake_lock    normal_wakelock; /*wake lock for interrupt event*/
 };
 
 //MTD-SW3-PERIPHERAL-OwenHuang-NFC_DBG_MSG-00+{
@@ -201,6 +203,9 @@ static irqreturn_t pn544_dev_irq_handler(int irq, void *dev_id)
 
 	/* Wake up waiting readers */
 	wake_up(&pn544_dev->read_wq);
+
+    /*hold a wakelock*/
+    wake_lock_timeout(&pn544_dev->normal_wakelock, 5 * HZ); //prevent suspend for 5 seconds
 
 	return IRQ_HANDLED;
 }
@@ -464,6 +469,7 @@ static const struct file_operations pn544_dev_fops =
 	.write	= pn544_dev_write,
 	.open	= pn544_dev_open,
 	.unlocked_ioctl = pn544_dev_ioctl,
+	.compat_ioctl = pn544_dev_ioctl, //for 32bits userland make ioctl call into 64-bits kernel space
 };
 
 static int pn544_probe(struct i2c_client *client, const struct i2c_device_id *id)
@@ -593,6 +599,9 @@ static int pn544_probe(struct i2c_client *client, const struct i2c_device_id *id
 	mutex_init(&pn544_dev->read_mutex);
 	spin_lock_init(&pn544_dev->irq_enabled_lock);
 
+    /* initial wakelock */
+    wake_lock_init(&pn544_dev->normal_wakelock, WAKE_LOCK_SUSPEND, "pn547_transaction_wakelock");
+
 	pn544_dev->pn544_device.minor = MISC_DYNAMIC_MINOR;
 	pn544_dev->pn544_device.name = "pn544";
 	pn544_dev->pn544_device.fops = &pn544_dev_fops;
@@ -656,6 +665,7 @@ static int pn544_remove(struct i2c_client *client)
 	free_irq(client->irq, pn544_dev);
 	misc_deregister(&pn544_dev->pn544_device);
 	mutex_destroy(&pn544_dev->read_mutex);
+    wake_lock_destroy(&pn544_dev->normal_wakelock);
 	gpio_free(pn544_dev->irq_gpio);
 	gpio_free(pn544_dev->ven_gpio);
 	gpio_free(pn544_dev->firm_gpio);

@@ -39,6 +39,14 @@
 		qcom,mdss-dsi-v-back-porch = <18>;
 		qcom,mdss-dsi-v-front-porch = <18>;
 		qcom,mdss-dsi-v-pulse-width = <1>;
+
+		qcom,mdss-dsi-h-front-porch-lte = <232>; //514Mbps
+		qcom,mdss-dsi-h-back-porch-lte = <112>; //514Mbps
+		qcom,mdss-dsi-h-pulse-width-lte = <20>; //514Mbps
+		qcom,mdss-dsi-v-back-porch-lte = <18>;
+		qcom,mdss-dsi-v-front-porch-lte = <18>;
+		qcom,mdss-dsi-v-pulse-width-lte = <1>;
+
 		qcom,mdss-dsi-h-left-border = <0>;
 		qcom,mdss-dsi-h-right-border = <0>;
 		qcom,mdss-dsi-v-top-border = <0>;
@@ -277,6 +285,8 @@
 		qcom,mdss-dsi-lane-3-state;
 //		qcom,mdss-dsi-panel-timings = [93 1F 17 00 2F 2E 1C 21 26 03 04 00]; //420Mbps
 		qcom,mdss-dsi-panel-timings =[D5 32 22 00 60 64 26 34 29 03 04 00];//800Mbsp
+		qcom,mdss-dsi-panel-timings-lte =[94 20 14 00 46 4A 1A 24 18 03 04 00];//514Mbsp
+
 		qcom,mdss-dsi-t-clk-post = <0x20>;
 		qcom,mdss-dsi-t-clk-pre = <0x2D>;
 		qcom,mdss-dsi-bl-min-level = <1>;
@@ -284,7 +294,7 @@
 		qcom,mdss-dsi-dma-trigger = <4>;
 		qcom,mdss-dsi-mdp-trigger = <0>;
 		qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_dcs";
-		qcom,mdss-dsi-reset-sequence = <1 20>, <0 1>, <1 20>;
+		qcom,mdss-dsi-reset-sequence = <1 1>, <0 10>, <1 150>;
 
 	};
 };

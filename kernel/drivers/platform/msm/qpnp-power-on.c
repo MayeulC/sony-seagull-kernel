@@ -1,5 +1,4 @@
-/* 
- * Copyright(C) 2012-2013 Foxconn International Holdings, Ltd. All rights reserved.
+/* Copyright(C) 2012-2013 Foxconn International Holdings, Ltd. All rights reserved.
  * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -1098,7 +1097,7 @@ static void detect_release_request(struct work_struct *work)
 /* CORE-TH-Force_Trigger_Panic-00+] */
 
 /* MTD-CORE-EL-power_on_cause-01+[ */
-static unsigned int fih_power_on_cause; 
+unsigned int fih_power_on_cause; /* CORE-DY-HWWD-00* */
 
 // CORE-EL-dbg_power_on_reason-00+[
 #ifdef CONFIG_FIH_USER_DEBUG
@@ -1124,7 +1123,9 @@ void show_startup_reason(void)
 #ifdef CONFIG_FIH_SEMC_S1
 
 static unsigned int s1_poweron_reason;
-static unsigned int s1_warmboot_reason;
+
+/* CORE-EL-fix_LA1.0_1017_can't_POC-00* */
+unsigned int s1_warmboot_reason;
 
 static int __init startup_reason_setup(char *param)
 {

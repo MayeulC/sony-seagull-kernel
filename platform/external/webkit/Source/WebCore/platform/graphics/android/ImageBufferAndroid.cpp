@@ -39,7 +39,7 @@
 #include "SkCanvas.h"
 #include "SkColorPriv.h"
 #include "SkData.h"
-#include "SkDevice.h"
+#include "SkBitmapDevice.h"
 #include "SkImageEncoder.h"
 #include "SkStream.h"
 #include "SkUnPreMultiply.h"
@@ -101,7 +101,7 @@ PassRefPtr<Image> ImageBuffer::copyImage() const
     if (!canvas)
       return 0;
 
-    SkDevice* device = canvas->getDevice();
+    SkBaseDevice* device = canvas->getDevice();
     const SkBitmap& orig = device->accessBitmap(false);
 
     SkBitmap copy;

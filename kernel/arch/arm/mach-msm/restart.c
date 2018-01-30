@@ -312,7 +312,8 @@ static void msm_restart_prepare(const char *cmd)
 
 	/* Hard reset the PMIC unless memory contents must be maintained. */
 //CORE-EL-adb_reboot_fail-00*
-	if (get_dload_mode() || (cmd != NULL && cmd[0] != '\0' && strncmp(cmd, "hwreset", 7)))
+	if (get_dload_mode() || (cmd != NULL && cmd[0] != '\0' && 
+			strncmp(cmd, "hwreset", 7) && strncmp(cmd, "recovery", 8)))
 		qpnp_pon_system_pwr_off(PON_POWER_OFF_WARM_RESET);
 	else
 		qpnp_pon_system_pwr_off(PON_POWER_OFF_HARD_RESET);
@@ -355,8 +356,23 @@ static void msm_restart_prepare(const char *cmd)
 	}
 
 	fih_hw_wd_ptr = (unsigned int*) get_hw_wd_virt_addr();
-	if (fih_hw_wd_ptr != NULL)
-		*fih_hw_wd_ptr = MTD_PWR_ON_EVENT_CLEAN_DATA;
+
+	/* CORE-EL-HWWD-00*[ */
+	if (fih_hw_wd_ptr != NULL) {
+		do {
+			if (cmd != NULL) {
+				if (!strncmp(cmd, "hwwd", 5)) {
+					/* if reset command is "hwwd", don't clean hw wd signature */
+					break;
+				}
+			}
+
+			/* normal path: drop here and clean hw wd signature */
+			*fih_hw_wd_ptr = 0;
+		} while(0);
+	}
+	/* CORE-EL-HWWD-00*] */
+	
 /* MTD-CORE-EL-power_on_cause-00+] */
 
 	flush_cache_all();

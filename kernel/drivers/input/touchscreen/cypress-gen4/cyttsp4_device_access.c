@@ -171,8 +171,8 @@ static ssize_t cyttsp4_ic_grpnum_store(struct device *dev,
 		return size;
 	}
 
-	if (value > 0xFF)
-		value = 0xFF;
+//	if (value > 0xFF)
+//		value = 0xFF;
 
 	mutex_lock(&dad->sysfs_lock);
 	/*

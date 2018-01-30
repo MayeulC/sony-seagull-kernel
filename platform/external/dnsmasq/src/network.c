@@ -963,7 +963,6 @@ void set_interfaces(const char *interfaces)
 
         close_bound_listener(old_iface);
       }
-//CONN-EC-WIFI-NickiSS_JBMR2-00957-01+[
       else
       {
         struct listener **l, *listener;
@@ -979,7 +978,6 @@ void set_interfaces(const char *interfaces)
         if ( listener )
           listener->iface = new_iface;
       }
-//CONN-EC-WIFI-NickiSS_JBMR2-00957-01+]
     }
 
     /* remove wildchar listeners */

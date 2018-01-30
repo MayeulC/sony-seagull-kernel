@@ -305,6 +305,7 @@
 		qcom,bus-width = <8>;
 		qcom,nonremovable;
 		qcom,bus-speed-mode = "HS200_1p8v", "DDR_1p8v";
+		qcom,cpu-dma-latency-us = <701>;
 
 		status = "disabled";
 	};
@@ -338,6 +339,7 @@
 		qcom,xpc;
 		qcom,bus-speed-mode = "SDR12", "SDR25", "SDR50", "DDR50", "SDR104";
 		qcom,current-limit = <800>;
+		qcom,cpu-dma-latency-us = <701>;
 
 		status = "disabled";
 	};
@@ -351,6 +353,7 @@
 		interrupt-names = "hc_irq", "pwr_irq";
 
 		qcom,bus-width = <8>;
+		qcom,cpu-dma-latency-us = <701>;
 		status = "disabled";
 	};
 
@@ -363,6 +366,7 @@
 		interrupt-names = "hc_irq", "pwr_irq";
 
 		qcom,bus-width = <4>;
+		qcom,cpu-dma-latency-us = <701>;
 		status = "disabled";
 	};
 
@@ -588,6 +592,7 @@
                 qcom,i2c-src-freq = <19200000>;
                 qcom,sda-gpio = <&msmgpio 10 0>;
                 qcom,scl-gpio = <&msmgpio 11 0>;
+		qcom,clk-ctl-xfer;
                 qcom,master-id = <86>;
 	};
 
@@ -765,6 +770,11 @@
 			compatible = "qcom,msm-dai-q6-dev";
 			qcom,msm-dai-q6-dev-id = <32773>;
 		};
+
+		qcom,msm-dai-q6-incall-music-2-rx {
+			compatible = "qcom,msm-dai-q6-dev";
+			qcom,msm-dai-q6-dev-id = <32770>;
+		};
 	};
 
 	qcom,msm-pcm-hostless {
@@ -904,15 +914,16 @@
 		qcom,disk-encrypt-pipe-pair = <2>;
 		qcom,hlos-ce-hw-instance = <0>;
 		qcom,qsee-ce-hw-instance = <0>;
+		qcom,support-bus-scaling;
 		qcom,msm-bus,name = "qseecom-noc";
 		qcom,msm-bus,num-cases = <4>;
 		qcom,msm-bus,active-only = <0>;
 		qcom,msm-bus,num-paths = <1>;
 		qcom,msm-bus,vectors-KBps =
 				<55 512 0 0>,
-				<55 512 3936000 393600>,
-				<55 512 3936000 393600>,
-				<55 512 3936000 393600>;
+				<55 512 0 0>,
+				<55 512 120000 1200000>,
+				<55 512 393600 3936000>;
 	};
 
         qcom,msm-rng@f9bff000 {
@@ -1168,6 +1179,7 @@
 		qcom,hw-settle-time = <2>;
 		qcom,fast-avg-setup = <3>;
 		qcom,btm-channel-number = <0x48>;
+		qcom,meas-interval-timer-idx = <2>;
 	};
 
 	chan@8 {

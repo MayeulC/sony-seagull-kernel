@@ -46,14 +46,14 @@
 #include "bindings/v8/npruntime_impl.h"
 #include "bindings/v8/npruntime_priv.h"
 #include "core/dom/Range.h"
-#include "core/page/DOMWindow.h"
-#include "core/page/Frame.h"
+#include "core/frame/DOMWindow.h"
+#include "core/frame/Frame.h"
 #include "public/platform/WebArrayBuffer.h"
 #include "wtf/ArrayBufferView.h"
 
 using namespace WebCore;
 
-namespace WebKit {
+namespace blink {
 
 bool WebBindings::construct(NPP npp, NPObject* object, const NPVariant* args, uint32_t argCount, NPVariant* result)
 {
@@ -222,10 +222,10 @@ static bool getRangeImpl(NPObject* object, WebRange* webRange, v8::Isolate* isol
     v8::Handle<v8::Object> v8Object = v8::Local<v8::Object>::New(isolate, v8NPObject->v8Object);
     if (v8Object.IsEmpty())
         return false;
-    if (!V8Range::info.equals(toWrapperTypeInfo(v8Object)))
+    if (!V8Range::wrapperTypeInfo.equals(toWrapperTypeInfo(v8Object)))
         return false;
 
-    Range* native = V8Range::HasInstanceInAnyWorld(v8Object, isolate) ? V8Range::toNative(v8Object) : 0;
+    Range* native = V8Range::hasInstanceInAnyWorld(v8Object, isolate) ? V8Range::toNative(v8Object) : 0;
     if (!native)
         return false;
 
@@ -246,7 +246,7 @@ static bool getNodeImpl(NPObject* object, WebNode* webNode, v8::Isolate* isolate
     v8::Handle<v8::Object> v8Object = v8::Local<v8::Object>::New(isolate, v8NPObject->v8Object);
     if (v8Object.IsEmpty())
         return false;
-    Node* native = V8Node::HasInstanceInAnyWorld(v8Object, isolate) ? V8Node::toNative(v8Object) : 0;
+    Node* native = V8Node::hasInstanceInAnyWorld(v8Object, isolate) ? V8Node::toNative(v8Object) : 0;
     if (!native)
         return false;
 
@@ -267,7 +267,7 @@ static bool getElementImpl(NPObject* object, WebElement* webElement, v8::Isolate
     v8::Handle<v8::Object> v8Object = v8::Local<v8::Object>::New(isolate, v8NPObject->v8Object);
     if (v8Object.IsEmpty())
         return false;
-    Element* native = V8Element::HasInstanceInAnyWorld(v8Object, isolate) ? V8Element::toNative(v8Object) : 0;
+    Element* native = V8Element::hasInstanceInAnyWorld(v8Object, isolate) ? V8Element::toNative(v8Object) : 0;
     if (!native)
         return false;
 
@@ -288,7 +288,7 @@ static bool getArrayBufferImpl(NPObject* object, WebArrayBuffer* arrayBuffer, v8
     v8::Handle<v8::Object> v8Object = v8::Local<v8::Object>::New(isolate, v8NPObject->v8Object);
     if (v8Object.IsEmpty())
         return false;
-    ArrayBuffer* native = V8ArrayBuffer::HasInstanceInAnyWorld(v8Object, isolate) ? V8ArrayBuffer::toNative(v8Object) : 0;
+    ArrayBuffer* native = V8ArrayBuffer::hasInstanceInAnyWorld(v8Object, isolate) ? V8ArrayBuffer::toNative(v8Object) : 0;
     if (!native)
         return false;
 
@@ -309,7 +309,7 @@ static bool getArrayBufferViewImpl(NPObject* object, WebArrayBufferView* arrayBu
     v8::Handle<v8::Object> v8Object = v8::Local<v8::Object>::New(isolate, v8NPObject->v8Object);
     if (v8Object.IsEmpty())
         return false;
-    ArrayBufferView* native = V8ArrayBufferView::HasInstanceInAnyWorld(v8Object, isolate) ? V8ArrayBufferView::toNative(v8Object) : 0;
+    ArrayBufferView* native = V8ArrayBufferView::hasInstanceInAnyWorld(v8Object, isolate) ? V8ArrayBufferView::toNative(v8Object) : 0;
     if (!native)
         return false;
 
@@ -317,27 +317,26 @@ static bool getArrayBufferViewImpl(NPObject* object, WebArrayBufferView* arrayBu
     return true;
 }
 
-static NPObject* makeIntArrayImpl(const WebVector<int>& data)
+static NPObject* makeIntArrayImpl(const WebVector<int>& data, v8::Isolate* isolate)
 {
-    v8::HandleScope handleScope;
-    v8::Handle<v8::Array> result = v8::Array::New(data.size());
+    v8::HandleScope handleScope(isolate);
+    v8::Handle<v8::Array> result = v8::Array::New(isolate, data.size());
     for (size_t i = 0; i < data.size(); ++i)
-        result->Set(i, v8::Number::New(data[i]));
+        result->Set(i, v8::Number::New(isolate, data[i]));
 
-    DOMWindow* window = toDOMWindow(v8::Context::GetCurrent());
-    return npCreateV8ScriptObject(0, result, window);
+    DOMWindow* window = toDOMWindow(isolate->GetCurrentContext());
+    return npCreateV8ScriptObject(0, result, window, isolate);
 }
 
-static NPObject* makeStringArrayImpl(const WebVector<WebString>& data)
+static NPObject* makeStringArrayImpl(const WebVector<WebString>& data, v8::Isolate* isolate)
 {
-    v8::Isolate* isolate = v8::Isolate::GetCurrent();
-    v8::HandleScope handleScope;
-    v8::Handle<v8::Array> result = v8::Array::New(data.size());
+    v8::HandleScope handleScope(isolate);
+    v8::Handle<v8::Array> result = v8::Array::New(isolate, data.size());
     for (size_t i = 0; i < data.size(); ++i)
-        result->Set(i, v8String(data[i], isolate));
+        result->Set(i, v8String(isolate, data[i]));
 
-    DOMWindow* window = toDOMWindow(v8::Context::GetCurrent());
-    return npCreateV8ScriptObject(0, result, window);
+    DOMWindow* window = toDOMWindow(isolate->GetCurrentContext());
+    return npCreateV8ScriptObject(0, result, window, isolate);
 }
 
 bool WebBindings::getRange(NPObject* range, WebRange* webRange)
@@ -367,12 +366,12 @@ bool WebBindings::getElement(NPObject* element, WebElement* webElement)
 
 NPObject* WebBindings::makeIntArray(const WebVector<int>& data)
 {
-    return makeIntArrayImpl(data);
+    return makeIntArrayImpl(data, v8::Isolate::GetCurrent());
 }
 
 NPObject* WebBindings::makeStringArray(const WebVector<WebString>& data)
 {
-    return makeStringArrayImpl(data);
+    return makeStringArrayImpl(data, v8::Isolate::GetCurrent());
 }
 
 void WebBindings::pushExceptionHandler(ExceptionHandler handler, void* data)
@@ -387,7 +386,7 @@ void WebBindings::popExceptionHandler()
 
 void WebBindings::toNPVariant(v8::Local<v8::Value> object, NPObject* root, NPVariant* result)
 {
-    WebCore::convertV8ObjectToNPVariant(object, root, result);
+    WebCore::convertV8ObjectToNPVariant(object, root, result, v8::Isolate::GetCurrent());
 }
 
 v8::Handle<v8::Value> WebBindings::toV8Value(const NPVariant* variant)
@@ -397,12 +396,12 @@ v8::Handle<v8::Value> WebBindings::toV8Value(const NPVariant* variant)
         NPObject* object = NPVARIANT_TO_OBJECT(*variant);
         V8NPObject* v8Object = npObjectToV8NPObject(object);
         if (!v8Object)
-            return v8::Undefined();
-        return convertNPVariantToV8Object(variant, v8Object->rootObject->frame()->script()->windowScriptNPObject(), isolate);
+            return v8::Undefined(isolate);
+        return convertNPVariantToV8Object(variant, v8Object->rootObject->frame()->script().windowScriptNPObject(), isolate);
     }
     // Safe to pass 0 since we have checked the script object class to make sure the
     // argument is a primitive v8 type.
     return convertNPVariantToV8Object(variant, 0, isolate);
 }
 
-} // namespace WebKit
+} // namespace blink

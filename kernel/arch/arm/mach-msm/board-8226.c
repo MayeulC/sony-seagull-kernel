@@ -1,5 +1,4 @@
-/*
- * Copyright(C) 2012-2013 Foxconn International Holdings, Ltd. All rights reserved. 
+/* Copyright(C) 2012-2013 Foxconn International Holdings, Ltd. All rights reserved. 
  * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify

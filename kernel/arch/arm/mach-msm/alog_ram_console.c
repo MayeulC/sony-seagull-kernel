@@ -10,8 +10,10 @@
   Author:
         Bryan Hsieh May-30-2010
 -------------------------------------------------------------------------------
-** Copyright (C) 2014 Foxconn International Holdings, Ltd. All rights reserved.
-**
+** FIHSPEC CONFIDENTIAL
+** Copyright(C) 2011-2013 Foxconn International Holdings, Ltd. All rights reserved.
+** Copyright(c) 2009 FIHSPEC Corporation. All Rights Reserved.
+**^M
 ** The source code contained or described herein and all documents related
 ** to the source code (Material) are owned by FIHSPEC Technology Corporation.
 ** The Material is protected by worldwide copyright and trade secret laws and
@@ -33,6 +35,7 @@
 #include <linux/spinlock.h>
 #include <linux/sched.h>
 #include <asm/current.h>
+#include <linux/vmalloc.h> //CORE-BH-ParseRamdumpLastAlog-01+
 
 #include "mach/alog_ram_console.h"
 
@@ -91,10 +94,11 @@ static char *alog_ram_console_old_log[LOG_TYPE_NUM];
 static size_t alog_ram_console_old_log_size[LOG_TYPE_NUM];
 
 static AlogRamConsoleBuffer *alog_ram_console_buffer[LOG_TYPE_NUM]; /* alog ram console structure identity */
- //MTD-kernel-BH-ParseRamdumpLastAlog-00+[
-static AlogRamConsoleBuffer *alog_ram_console_buffer_ext[LOG_TYPE_NUM] =  {NULL,NULL,NULL,NULL}; 
+//MTD-kernel-BH-ParseRamdumpLastAlog-00+[
+static AlogRamConsoleBuffer *alog_ram_console_buffer_ext =  NULL; //CORE-BH-ParseRamdumpLastAlog-01*
 struct proc_dir_entry *lastalog_entry[LOG_TYPE_NUM] =  {NULL,NULL,NULL,NULL};
- //MTD-kernel-BH-ParseRamdumpLastAlog-00+]
+//MTD-kernel-BH-ParseRamdumpLastAlog-00+]
+static int need_alloc_ext_buffer = 1; //CORE-BH-ParseRamdumpLastAlog-01+
 static size_t alog_ram_console_payload_size[LOG_TYPE_NUM];           /* maximum payload size of allog ram console buffer */
 static uint32_t alog_ram_console_signature[LOG_TYPE_NUM] = {        /* alog ram console signature */
 	ALOG_RAM_CONSOLE_MAIN_SIG,
@@ -154,9 +158,9 @@ void alog_ram_console_sync_time(const LogType log_type, const SyncType sync_type
 	if (log_type == LOG_TYPE_ALL)
 	{
 		if (sync_type == SYNC_AFTER)
-			printk(KERN_INFO "[LastAlog] alog_ram_console_sync_time %s for all log_type - After\n", tbuf);
+			pr_info("[LastAlog] alog_ram_console_sync_time %s for all log_type - After\n", tbuf);
 		else
-			printk(KERN_INFO "[LastAlog] alog_ram_console_sync_time %s for all log_type - Before\n", tbuf);
+			pr_info("[LastAlog] alog_ram_console_sync_time %s for all log_type - Before\n", tbuf);
 	
 		for (i =LOG_TYPE_MAIN; i<LOG_TYPE_NUM; i++)
 		{
@@ -175,12 +179,12 @@ void alog_ram_console_sync_time(const LogType log_type, const SyncType sync_type
 		alog_ram_console_write_log(log_type, NULL, (char *)&prio, 1); //FIH-SW3-KERNEL-BH-last_alog-01*
 		if (sync_type == SYNC_AFTER)
 		{
-			printk(KERN_INFO "[LastAlog] alog_ram_console_sync_time %s for log_type:%d - After\n", tbuf, log_type);
+			pr_info("[LastAlog] alog_ram_console_sync_time %s for log_type:%d - After\n", tbuf, log_type);
 			alog_ram_console_write_log(log_type, NULL, "SYNCA", 6); //FIH-SW3-KERNEL-BH-last_alog-01*
 		}
 		else
 		{
-			printk(KERN_INFO "[LastAlog] alog_ram_console_sync_time %s for log_type:%d - Before\n", tbuf, log_type);
+			pr_info("[LastAlog] alog_ram_console_sync_time %s for log_type:%d - Before\n", tbuf, log_type);
 			alog_ram_console_write_log(log_type, NULL, "SYNCB", 6); //FIH-SW3-KERNEL-BH-last_alog-01*
 		}
 		alog_ram_console_write_log(log_type, NULL, tbuf, tlen+1); //FIH-SW3-KERNEL-BH-last_alog-01*
@@ -199,7 +203,7 @@ int alog_ram_console_write_log(const LogType log_type, const void __user *user_b
 #ifdef BUFFER_DEBUG
 	int i = 0;
 
-	printk(KERN_INFO "[LastAlog] write_log: log_type:%d buffer->start:%d buffer->size:%d rem:%d count:%d", log_type, buffer->start, buffer->size, alog_ram_console_payload_size[log_type] - buffer->start, count);
+	pr_info("[LastAlog] write_log: log_type:%d buffer->start:%d buffer->size:%d rem:%d count:%d", log_type, buffer->start, buffer->size, alog_ram_console_payload_size[log_type] - buffer->start, count);
 #endif
 	//MTD-KERNEL-BH-last_alog-01+[
 	if (user_buf && kernel_buf)
@@ -372,7 +376,7 @@ int alog_ram_console_write_log(const LogType log_type, const void __user *user_b
 	return overrun;
 }
 
-static void alog_ram_console_save_old(const LogType log_type, char *dest, int isExt) //MTD-kernel-BH-ParseRamdumpLastAlog-00*
+static int alog_ram_console_save_old(const LogType log_type, char *dest, int isExt) //CORE-BH-ParseRamdumpLastAlog-01*
 {
 	//MTD-kernel-BH-ParseRamdumpLastAlog-00*[
 	size_t old_log_size;
@@ -381,54 +385,97 @@ static void alog_ram_console_save_old(const LogType log_type, char *dest, int is
 	AlogRamConsoleBuffer *src;
 
 	if (isExt)
-	{
-		src = alog_ram_console_buffer_ext[log_type];
-	}
+		src = alog_ram_console_buffer_ext;  //CORE-BH-ParseRamdumpLastAlog-01*
 	else
-	{
 		src = alog_ram_console_buffer[log_type];
 	
+	//CORE-BH-ParseRamdumpLastAlog-01+[
+	if (src == NULL)
+	{
+		pr_err("[LastAlog] save_old: alog ram console buffer is NULL for [%d]\n", log_type);
+		return -EFAULT;
 	}
+	//CORE-BH-ParseRamdumpLastAlog-01+]
+	
 	old_log_size = src->size;
 	reader_pos = src->reader_pos;
 	start_pos = src->start;
 	//MTD-kernel-BH-ParseRamdumpLastAlog-00*]
 	 
 	if (dest == NULL) {
-		dest = kmalloc(old_log_size, GFP_KERNEL);
+		dest = vmalloc(old_log_size); //MTD-kernel-BH-ParseRamdumpLastAlog-01*
 		if (dest == NULL) {
-			printk(KERN_ERR "[LastAlog] save_old: failed to allocate buffer\n");
-			return;
+			pr_err("[LastAlog] save_old: failed to allocate old log buffer, old_log_size:%d\n", old_log_size);
+			return -ENOMEM; //CORE-BH-ParseRamdumpLastAlog-01*
 		}
 	}
 
 	/* copy old log by sequence */
 	alog_ram_console_old_log[log_type] = dest;
-	
+	//CORE-BH-ParseRamdumpLastAlog-01*[
 	if (old_log_size < alog_ram_console_payload_size[log_type])
 	{
-		memcpy(alog_ram_console_old_log[log_type], src->data, old_log_size);
-		alog_ram_console_old_log_size[log_type] = old_log_size;
+		memcpy(dest, src->data, old_log_size);
+		alog_ram_console_old_log_size[log_type]   = old_log_size;
 	}
 	else
 	{
-		memcpy(alog_ram_console_old_log[log_type], &src->data[reader_pos], old_log_size - reader_pos);
-		memcpy(alog_ram_console_old_log[log_type] + old_log_size - reader_pos, src->data, start_pos);
-		alog_ram_console_old_log_size[log_type] = old_log_size - reader_pos + start_pos;
+		//CORE-BH-LastAlog-01+[
+		if (start_pos >= reader_pos)
+		{
+			if ((start_pos - reader_pos) > old_log_size)
+			{
+				pr_err("[LastAlog] save_old: invalid len, old_log_size:%d reader_pos:%d start_pos:%d", old_log_size, reader_pos, start_pos);
+				vfree(alog_ram_console_old_log[log_type]);
+				alog_ram_console_old_log[log_type] = NULL;
+				alog_ram_console_old_log_size[log_type] = 0;
+			}
+			else
+			{
+				memcpy(alog_ram_console_old_log[log_type], &src->data[reader_pos], start_pos - reader_pos);
+				alog_ram_console_old_log_size[log_type] = start_pos - reader_pos ;
+			}
+		}
+		else
+		{
+			if ((old_log_size - reader_pos + start_pos) > old_log_size)
+			{
+				pr_err("[LastAlog] save_old: invalid len old_log_size:%d reader_pos:%d start_pos:%d", old_log_size, reader_pos, start_pos);
+				vfree(alog_ram_console_old_log[log_type]);
+				alog_ram_console_old_log[log_type] = NULL;
+				alog_ram_console_old_log_size[log_type] = 0;
+			}
+			else
+			{
+		//CORE-BH-LastAlog-01+]
+				memcpy(alog_ram_console_old_log[log_type], &src->data[reader_pos], old_log_size - reader_pos);
+				memcpy(alog_ram_console_old_log[log_type] + old_log_size - reader_pos, src->data, start_pos);
+				alog_ram_console_old_log_size[log_type] = old_log_size - reader_pos + start_pos;
+			}
+		}
 	}
-
-	printk(KERN_ERR "[LastAlog] save_old: alog_ram_console_old_log[%d]=0x%X alog_ram_console_old_log_size[%d]=%d reader_pos=%d start_pos=%d buffer_size=%d\n", log_type, (unsigned int)alog_ram_console_old_log[log_type], log_type, alog_ram_console_old_log_size[log_type], reader_pos, start_pos, old_log_size);
-
+	//CORE-BH-ParseRamdumpLastAlog-01*]
+	//CORE-BH-ParseRamdumpLastAlog-01+[
+	if (isExt && alog_ram_console_buffer_ext)
+	{
+		vfree(alog_ram_console_buffer_ext); //need to free alog ram console buffer for external usage after saving old log
+		alog_ram_console_buffer_ext = NULL;
+		need_alloc_ext_buffer = 1;
+	}
+	pr_err("[LastAlog] save_old: alog_ram_console_old_log[%d]=0x%X alog_ram_console_old_log_size[%d]=%d reader_pos=%d start_pos=%d buffer_size=%d\n", log_type, (unsigned int)dest, log_type, alog_ram_console_old_log_size[log_type], reader_pos, start_pos, old_log_size);
+	return 0;
+	//CORE-BH-ParseRamdumpLastAlog-01+]
 }
 
 static int __init alog_ram_console_init(const LogType log_type, AlogRamConsoleBuffer *buffer, size_t buffer_size, char *old_buf)
 {
+	int ret; //CORE-BH-ParseRamdumpLastAlog-01+
 	alog_ram_console_buffer[log_type] = buffer;
 
 	/* set maximum of  usable alog ram console buffer size */
 	//MTD-kernel-BH-ParseRamdumpLastAlog-00*[
 	alog_ram_console_payload_size[log_type] = buffer_size - sizeof(AlogRamConsoleBuffer) ;
-	printk(KERN_INFO "[LastAlog] init for log type:%d alog_ram_console_buffer:0x%x alog_ram_console_payload_size:%d(0x%x) buffer->data:0x%x\n", log_type, (unsigned int)alog_ram_console_buffer[log_type], alog_ram_console_payload_size[log_type], alog_ram_console_payload_size[log_type], (unsigned int)buffer->data); //MTD-kernel-BH-ParseRamdumpLastAlog-00*
+	pr_info("[LastAlog] init for log type:%d alog_ram_console_buffer:0x%x alog_ram_console_payload_size:%d(0x%x) buffer->data:0x%x\n", log_type, (unsigned int)alog_ram_console_buffer[log_type], alog_ram_console_payload_size[log_type], alog_ram_console_payload_size[log_type], (unsigned int)buffer->data); //MTD-kernel-BH-ParseRamdumpLastAlog-00*
 
 	/* if alog ram console has correct signature, that means there are logs in ram console */
 	if (buffer->sig == alog_ram_console_signature[log_type]) 
@@ -437,17 +484,21 @@ static int __init alog_ram_console_init(const LogType log_type, AlogRamConsoleBu
 		if ((buffer->size > alog_ram_console_payload_size[log_type]) || 
 			(buffer->start > buffer->size) ||
 			(buffer->reader_pos) > (buffer->size))
-			printk(KERN_INFO "[LastAlog] init for log type:%d found existing invalid buffer, size %d, start %d\n", log_type, buffer->size, buffer->start);
-		else 
+			pr_info("[LastAlog] init for log type:%d found existing invalid buffer, size %d, start %d\n", log_type, buffer->size, buffer->start);
+		else
 		{
-			printk(KERN_INFO "[LastAlog] init for log type:%d found existing buffer, size %d, start %d, reader_pos %d\n", log_type, buffer->size, buffer->start, buffer->reader_pos);
-			alog_ram_console_save_old(log_type, old_buf,0); /* save old log */
+			pr_info("[LastAlog] init for log type:%d found existing buffer, size %d, start %d, reader_pos %d\n", log_type, buffer->size, buffer->start, buffer->reader_pos);
+			ret = alog_ram_console_save_old(log_type, old_buf,0); /* save old log */ //CORE-BH-ParseRamdumpLastAlog-01*
+			//CORE-BH-ParseRamdumpLastAlog-01+[
+			if (ret)
+				return ret;
+			//CORE-BH-ParseRamdumpLastAlog-01+]
 		}
 		/*CORE-TH-AlogRamConsoleBufferSize-00-*/
 	} //MTD-kernel-BH-ParseRamdumpLastAlog-00*]
 	else 
 	{
-		printk(KERN_INFO "[LastAlog] init for log type:%d no valid data in buffer (sig = 0x%08x)\n", log_type, buffer->sig);
+		pr_info("[LastAlog] init for log type:%d no valid data in buffer (sig = 0x%08x)\n", log_type, buffer->sig);
 		/* init alog_ram_console_old_log[] */
 		alog_ram_console_old_log[log_type]=NULL;	
 		alog_ram_console_old_log_size[log_type]=0;		
@@ -478,18 +529,18 @@ static int alog_ram_console_driver_probe(struct platform_device *pdev)
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,alog_ram_console_res_name[i]);
 		if (res == NULL) 
 		{
-			printk(KERN_ERR "[LastAlog] driver_probe: invalid resource -%s\n",alog_ram_console_res_name[i]);
-			return -ENXIO;
+			pr_err("[LastAlog] driver_probe: invalid resource -%s\n",alog_ram_console_res_name[i]);
+			return -EFAULT;
 		}
 		else
 		{
 			whole_buffer_size = res->end - res->start + 1;
 			start = res->start;
-			printk(KERN_INFO "[LastAlog] driver_probe: got physical %s at 0x%zx, size %d(0x%zx)\n", alog_ram_console_res_name[i], start, whole_buffer_size,whole_buffer_size);
+			pr_info("[LastAlog] driver_probe: got physical %s at 0x%zx, size %d(0x%zx)\n", alog_ram_console_res_name[i], start, whole_buffer_size,whole_buffer_size);
 			whole_buffer = ioremap(res->start, whole_buffer_size);
 			if (whole_buffer == NULL)
 			{
-				printk(KERN_ERR "[LastAlog] driver_probe: failed to map memory for %s!\n", alog_ram_console_res_name[i]);
+				pr_err("[LastAlog] driver_probe: failed to map memory for %s!\n", alog_ram_console_res_name[i]);
 				return -ENOMEM;
 			}
 			ret += alog_ram_console_init(i, (AlogRamConsoleBuffer *)whole_buffer, whole_buffer_size, NULL/* allocate */);
@@ -521,7 +572,7 @@ static int __init alog_ram_console_module_init(void)
 
 	err = platform_driver_register(&alog_ram_console_driver);
 	if (err)
-		printk(KERN_ERR "[LastAlog] alog_ram_console_module_init ret:%d\n", err);
+		pr_err("[LastAlog] alog_ram_console_module_init ret:%d\n", err);
 	
 	return err;
 }
@@ -636,27 +687,30 @@ static ssize_t alog_ram_console_write_ext(const LogType log_type, struct file *f
 {
 	int whole_buffer_size = alog_ram_console_payload_size[log_type] + sizeof(AlogRamConsoleBuffer);
 
-	if (!alog_ram_console_buffer_ext[log_type])
+	//CORE-BH-ParseRamdumpLastAlog-01+[
+	if (need_alloc_ext_buffer)
 	{
-		alog_ram_console_buffer_ext[log_type] = (AlogRamConsoleBuffer *)kmalloc(whole_buffer_size, GFP_KERNEL);
-		if (!alog_ram_console_buffer_ext[log_type]) 
-		{
-			pr_err("LastAlog] write_ext: failed to allocate external alog ram console buffer\n");
-			return -EFAULT;
+		alog_ram_console_buffer_ext = (AlogRamConsoleBuffer *)vmalloc(whole_buffer_size);
+		if (alog_ram_console_buffer_ext == NULL) {
+			pr_err("[LastAlog] write_ext: failed to allocate alog ram console buffer for [%d] whole_buffer_size:%d\n", log_type, whole_buffer_size);
+			return -ENOMEM;
 		}
+		need_alloc_ext_buffer = 0;
 	}
-
+	//CORE-BH-ParseRamdumpLastAlog-01+]
+	//CORE-BH-ParseRamdumpLastAlog-01*[
 	if ((*offset + len) > whole_buffer_size)
 	{
 		pr_err("[LastAlog] write_ext: stop by (offset:%d + len:%d) > whole_buffer_size:%d\n", (int)*offset, (int)len, whole_buffer_size);
 		return -EFAULT;
 	}
 
-    if(copy_from_user((char*)alog_ram_console_buffer_ext[log_type]+*offset, buf, len))
+    if(copy_from_user((char*)alog_ram_console_buffer_ext +*offset, buf, len))
     {
-    	pr_err("[LastAlog] write_ext: fail to copy from user\n");
+    	pr_err("[LastAlog] write_ext: fail to copy alog_ram_console_buffer_ext for [%d] from user\n", log_type);
         return -EFAULT;
-    }		
+    }
+	//CORE-BH-ParseRamdumpLastAlog-01*]
     *offset +=  len;
 		
 	return len;
@@ -689,6 +743,7 @@ static ssize_t alog_ram_console_write_ext_system(struct file *file, const char _
 static int alog_ram_console_read_ext(const LogType log_type, char __user *buf,
 				    size_t len, loff_t pos, ssize_t *count)
 {
+	int ret = 0; //CORE-BH-ParseRamdumpLastAlog-01+
 	int whole_buffer_size = alog_ram_console_payload_size[log_type] + sizeof(AlogRamConsoleBuffer);
 
 	*count = 0;
@@ -703,11 +758,13 @@ static int alog_ram_console_read_ext(const LogType log_type, char __user *buf,
 	{
 		if (alog_ram_console_old_log[log_type])
 		{
-			pr_info("[LastAlog] read_ext: free alog_ram_console_old_log[%d]\n", log_type);
-			kfree(alog_ram_console_old_log[log_type]);
+			//CORE-BH-ParseRamdumpLastAlog-01*[
+			pr_info("[LastAlog] read_ext: alog_ram_console_old_log[%d] is exist, free to re-allocate for\n", log_type); 
+			vfree(alog_ram_console_old_log[log_type]);
+			alog_ram_console_old_log[log_type] = NULL;
+			//CORE-BH-ParseRamdumpLastAlog-01*]
 		}
-
-		alog_ram_console_save_old(log_type,NULL,1);	
+		ret = alog_ram_console_save_old(log_type,NULL,1); //CORE-BH-ParseRamdumpLastAlog-01*
 
 		if (!lastalog_entry[log_type])
 		{
@@ -715,28 +772,18 @@ static int alog_ram_console_read_ext(const LogType log_type, char __user *buf,
 			if (!lastalog_entry[log_type]) 
 			{
 				pr_err("[LastAlog] alog_ram_console_read_ext_main: failed to create proc entry - /proc/%s\n", alog_ram_console_proc_fn[log_type]);
-				kfree(alog_ram_console_old_log[log_type]);
+				vfree(alog_ram_console_old_log[log_type]);
 				alog_ram_console_old_log[log_type] = NULL;
 				return -EFAULT;
 			}
 
 			lastalog_entry[log_type] ->proc_fops = &alog_ram_console_file_ops[log_type];
-			lastalog_entry[log_type] ->size = alog_ram_console_old_log_size[log_type];		
 		}
-		else
-			lastalog_entry[log_type] ->size = alog_ram_console_old_log_size[log_type];		
+		lastalog_entry[log_type] ->size = alog_ram_console_old_log_size[log_type];		
 
 		*count = whole_buffer_size;
 	}
-#if 0	
-	*count = min((ssize_t)len, (ssize_t)(whole_buffer_size - pos));
-	if (copy_to_user(buf, (char*)alog_ram_console_buffer_ext[LOG_TYPE_MAIN] + pos, *count))
-	{
-    	pr_err("[LastAlog] read_ext: fail to copy to user\n");
-		return -EFAULT;
-	}
-#endif
-		return 0;
+	return ret; //CORE-BH-ParseRamdumpLastAlog-01*
 }
 
 
@@ -825,8 +872,8 @@ static int __init alog_ram_console_late_init(void)
 			lastalog_entry[i]  = create_proc_entry(alog_ram_console_proc_fn[i], S_IFREG | S_IRUGO, NULL);
 			if (!lastalog_entry[i]) 
 			{
-				printk(KERN_ERR "[LastAlog] late_init: failed to create proc entry - /proc/%s\n", alog_ram_console_proc_fn[i]);
-				kfree(alog_ram_console_old_log[i]);
+				pr_err("[LastAlog] late_init: failed to create proc entry - /proc/%s\n", alog_ram_console_proc_fn[i]);
+				vfree(alog_ram_console_old_log[i]);
 				alog_ram_console_old_log[i] = NULL;
 				return -EFAULT;
 			}

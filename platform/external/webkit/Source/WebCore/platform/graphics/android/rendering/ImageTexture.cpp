@@ -116,7 +116,7 @@ SkBitmap* ImageTexture::convertBitmap(SkBitmap* bitmap)
     SkCanvas canvas(*img);
     SkRect dest;
     dest.set(0, 0, w, h);
-    img->setIsOpaque(false);
+    img->setAlphaType(kPremul_SkAlphaType);
     img->eraseARGB(0, 0, 0, 0);
     canvas.drawBitmapRect(*bitmap, 0, dest);
 

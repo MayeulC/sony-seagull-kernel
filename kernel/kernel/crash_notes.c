@@ -1,6 +1,7 @@
 /*
- * Copyright(C) 2011-2013 Foxconn International Holdings, Ltd. All rights reserved.
+* Copyright(C) 2011-2013 Foxconn International Holdings, Ltd. All rights reserved.
 */
+
 
 #include <linux/capability.h>
 #include <linux/types.h>

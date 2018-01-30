@@ -1,7 +1,7 @@
 /* i2c-core.c - a device driver for the iic-bus interface		     */
 /* ------------------------------------------------------------------------- */
 /*   
-      Copyright (C) 2011-2013 Foxconn International Holdings, Ltd. All rights reserved.
+    Copyright (C) 2011-2013 Foxconn International Holdings, Ltd. All rights reserved.
 	Copyright (C) 1995-99 Simon G. Vogl
 
     This program is free software; you can redistribute it and/or modify

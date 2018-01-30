@@ -114,7 +114,7 @@ bool ImageFrame::hasAlpha() const
 
 void ImageFrame::setHasAlpha(bool alpha)
 {
-    m_bitmap.setIsOpaque(!alpha);
+    m_bitmap.setAlphaType((!alpha)?kOpaque_SkAlphaType : kPremul_SkAlphaType);
 }
 
 void ImageFrame::setColorProfile(const ColorProfile& colorProfile)

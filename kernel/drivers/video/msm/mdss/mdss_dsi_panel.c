@@ -51,7 +51,18 @@ static int mdss_dsi_parse_dcs_cmds(struct device_node *np,
 /* MM-VH-FTM02* */
 struct device_node *gMIPIDSInode;
 
-static bool PanelState = 0x0;
+/*display_on_in_boot FLAG will get LK CMD line(display_status=) and passer it */
+static bool display_on_in_boot = false;
+
+/*DisplayGpioInit FLAG used in gpio have initial all uninitial when call gpio setting*/
+static int DisplayGpioInit=0;
+
+/*DisplayGpioReady FLAG used in first gpio initial and register gpio goto which state in cool boot*/
+static int DisplayGpioReady=0;
+
+/*PanelState FLAG use for touch panel, announce touch driver display status */
+static bool PanelState = 0x1;
+
 static unsigned char gFirstChange = 0;
 static unsigned char gPanelModel = 0;
 static char manufacture_idDA[2] = {0xDA, 0x00};
@@ -68,6 +79,13 @@ bool mdss_display_power_state(void)
 }
 EXPORT_SYMBOL(mdss_display_power_state);
 
+bool mdss_display_splash_LK(void)
+{
+	return display_on_in_boot;
+}
+EXPORT_SYMBOL(mdss_display_splash_LK);
+
+
 unsigned char mdss_manufacture_id_read(void)
 {
 	return gPanelModel;
@@ -75,26 +93,31 @@ unsigned char mdss_manufacture_id_read(void)
 
 static void mdss_manufacture_cb(int data)
 {
-	gPanelModel = data;
-	printk("[DISPLAY]%s: pid 0x%x\n", __func__, gPanelModel);
+	return;
 }
 
-static unsigned char mdss_manufacture_id(struct mdss_dsi_ctrl_pdata *ctrl)
+unsigned char mdss_manufacture_id(struct mdss_dsi_ctrl_pdata *ctrl)
 {
 	struct dcs_cmd_req cmdreq;
+	char rx_buffer=0xFF;
 
 	memset(&cmdreq, 0, sizeof(cmdreq));
+
 	cmdreq.cmds = &manufacture_id_cmd;
 	cmdreq.cmds_cnt = 1;
 	cmdreq.flags = CMD_REQ_RX | CMD_REQ_COMMIT;
 	cmdreq.rlen = 1;
 	cmdreq.cb = mdss_manufacture_cb;
+	cmdreq.rbuf = &rx_buffer;
 	mdss_dsi_cmdlist_put(ctrl, &cmdreq);
+	memcpy(&rx_buffer,cmdreq.rbuf,sizeof(char));
+//	printk("[DISPLAY]%s: pid 0x%x\n", __func__, rx_buffer);
+	gPanelModel = rx_buffer;
 
 	return gPanelModel;
 }
 /* MM-VH-FTM02*[ */
-static int mdss_change_dcs_cmd(struct device_node *npIn,
+int mdss_change_dcs_cmd(struct device_node *npIn,
 		struct mdss_dsi_ctrl_pdata *ctrl, const char* name, const int id)
 {
 	struct device_node *all_nodes = NULL;
@@ -236,6 +259,7 @@ static struct dsi_cmd_desc backlight_cmd = {
 };
 /* MM-KW-DISPLAY-00+{ */
 static int last_bl_level = 0;
+static int backlightstart = 0;
 /* MM-KW-DISPLAY-00-} */
 
 static void mdss_dsi_panel_bklt_dcs(struct mdss_dsi_ctrl_pdata *ctrl, int level)
@@ -255,24 +279,100 @@ static void mdss_dsi_panel_bklt_dcs(struct mdss_dsi_ctrl_pdata *ctrl, int level)
 	memset(&cmdreq, 0, sizeof(cmdreq));
 	cmdreq.cmds = &backlight_cmd;
 	cmdreq.cmds_cnt = 1;
-	cmdreq.flags = CMD_REQ_COMMIT | CMD_CLK_CTRL;
+	cmdreq.flags = CMD_REQ_COMMIT | CMD_CLK_CTRL|CMD_REQ_LP_MODE;
 	cmdreq.rlen = 0;
 	cmdreq.cb = NULL;
 
+	/*Note: Due to move logo to LK, so there are some boot up flow be change.
+	When first boot to OS framework will call backlight first, but mdss isn't ready
+	so we ignore first call backlight in bootup.*/
+	if(!backlightstart && display_on_in_boot)
+	{
+		backlightstart++;
+		return;
+	}
 	mdss_dsi_cmdlist_put(ctrl, &cmdreq);
 	if(!level)
 		PanelState = 0;
 }
 
-void mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
+static int mdss_dsi_request_gpios(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
+{
+	int rc = 0;
+
+	printk("[DISPLAY]%s: + \n", __func__);
+
+	if (gpio_is_valid(ctrl_pdata->disp_en_gpio)) {
+		rc = gpio_request(ctrl_pdata->disp_en_gpio,
+						"disp_enable");
+		if (rc) {
+			pr_err("request disp_en gpio failed, rc=%d\n",
+				       rc);
+			goto disp_en_gpio_err;
+		}
+	}
+	rc = gpio_request(ctrl_pdata->rst_gpio, "disp_rst_n");
+	if (rc) {
+		pr_err("request reset gpio failed, rc=%d\n",
+			rc);
+		goto rst_gpio_err;
+	}
+	rc = gpio_request(ctrl_pdata->disp_p5_gpio, "disp_p5");
+	if (rc) {
+		pr_err("request p5 gpio failed, rc=%d\n",
+			   rc);
+		goto p5_gpio_err;
+	}
+
+	rc = gpio_request(ctrl_pdata->disp_n5_gpio, "disp_n5");
+	if (rc) {
+		pr_err("request p5 gpio failed, rc=%d\n",
+			   rc);
+		goto n5_gpio_err;
+	}
+
+#if 0
+	if (gpio_is_valid(ctrl_pdata->mode_gpio)) {
+		rc = gpio_request(ctrl_pdata->mode_gpio, "panel_mode");
+		if (rc) {
+			pr_err("request panel mode gpio failed,rc=%d\n",
+								rc);
+			goto mode_gpio_err;
+		}
+	}
+#endif
+
+	DisplayGpioInit = 1;
+
+	printk("[DISPLAY]%s: - \n", __func__);
+
+	return rc;
+
+n5_gpio_err:
+	gpio_free(ctrl_pdata->disp_n5_gpio);
+p5_gpio_err:
+	gpio_free(ctrl_pdata->disp_p5_gpio);
+
+	gpio_free(ctrl_pdata->rst_gpio);
+rst_gpio_err:
+	if (gpio_is_valid(ctrl_pdata->disp_en_gpio))
+		gpio_free(ctrl_pdata->disp_en_gpio);
+
+
+disp_en_gpio_err:
+	return rc;
+}
+
+int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 {
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
 	struct mdss_panel_info *pinfo = NULL;
-	//int i;
+	int i=0, rc = 0;
+
 	printk("[DISPLAY]%s: + en %d\n", __func__, enable);
 	if (pdata == NULL) {
 		pr_err("%s: Invalid input data\n", __func__);
-		return;
+		return -EINVAL;
 	}
 
 	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
@@ -286,34 +386,62 @@ void mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 	if (!gpio_is_valid(ctrl_pdata->rst_gpio)) {
 		pr_debug("%s:%d, reset line not configured\n",
 			   __func__, __LINE__);
-		return;
+		return rc;
 	}
 	/* MM-KW-DISPLAY-panel-00+{ */
 	pr_debug("%s: enable = %d\n", __func__, enable);
 	pinfo = &(ctrl_pdata->panel_data.panel_info);
 
 	if (enable) {
-		if (gpio_is_valid(ctrl_pdata->disp_en_gpio))
-			gpio_direction_output((ctrl_pdata->disp_en_gpio) , 1);
-		MDSS_MSLEEP(1);
-		/*for (i = 0; i < pdata->panel_info.rst_seq_len; ++i) {
-			gpio_set_value((ctrl_pdata->rst_gpio),
-				pdata->panel_info.rst_seq[i]);
-			if (pdata->panel_info.rst_seq[++i])
-				usleep(pdata->panel_info.rst_seq[i] * 1000);
+		/*NOTE: Base on this BSP display initial sequence architecture.
+		    When initial display in LK, we need ignore first initial gpio in kernel*/
+		if((!DisplayGpioReady)&&(display_on_in_boot))
+		{
+			DisplayGpioReady=1;
+			printk("[DISPLAY]%s: Gpio have been init before\n", __func__ );
+			return rc;
 		}
 
+		rc = mdss_dsi_request_gpios(ctrl_pdata);
+		if (rc) {
+			pr_err("gpio request failed\n");
+			return rc;
+		}
+
+
+		if (!pinfo->panel_power_on) {
+			gpio_set_value((ctrl_pdata->disp_en_gpio),0);
+			gpio_set_value((ctrl_pdata->disp_p5_gpio),0);
+			gpio_set_value((ctrl_pdata->disp_n5_gpio),0);
+
+			MDSS_MSLEEP(1);
+			if (gpio_is_valid(ctrl_pdata->disp_en_gpio))
+				gpio_set_value((ctrl_pdata->disp_en_gpio), 1);
+
+			if (gpio_is_valid(ctrl_pdata->disp_p5_gpio))
+				gpio_set_value((ctrl_pdata->disp_p5_gpio) , 1);
+
+			MDSS_MSLEEP(1);
+			if (gpio_is_valid(ctrl_pdata->disp_n5_gpio))
+				gpio_set_value((ctrl_pdata->disp_n5_gpio) , 1);
+
+			MDSS_MSLEEP(50);
+			for (i = 0; i < pdata->panel_info.rst_seq_len; ++i) {
+				gpio_set_value((ctrl_pdata->rst_gpio),
+					pdata->panel_info.rst_seq[i]);
+				if (pdata->panel_info.rst_seq[++i])
+					MDSS_MSLEEP(pinfo->rst_seq[i]);
+
+			}
+		}
+#if 0
 		if (gpio_is_valid(ctrl_pdata->mode_gpio)) {
 			if (pinfo->mode_gpio_state == MODE_GPIO_HIGH)
 				gpio_set_value((ctrl_pdata->mode_gpio), 1);
 			else if (pinfo->mode_gpio_state == MODE_GPIO_LOW)
 				gpio_set_value((ctrl_pdata->mode_gpio), 0);
-		}*/
-		if (gpio_is_valid(ctrl_pdata->disp_p5_gpio))
-			gpio_direction_output((ctrl_pdata->disp_p5_gpio) , 1);
-		MDSS_MSLEEP(1);
-		if (gpio_is_valid(ctrl_pdata->disp_n5_gpio))
-			gpio_direction_output((ctrl_pdata->disp_n5_gpio) , 1);
+		}
+#endif
 		/* MM-KW-DISPLAY-00-} */
 
 		if (ctrl_pdata->ctrl_state & CTRL_STATE_PANEL_INIT) {
@@ -323,24 +451,55 @@ void mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 			pr_debug("%s: Reset panel done\n", __func__);
 		}
 
-		MDSS_MSLEEP(10);
-		gpio_direction_output((ctrl_pdata->rst_gpio) , 1);
-		MDSS_MSLEEP(150);
 	} else {
-		gpio_direction_output((ctrl_pdata->rst_gpio), 0);
-		MDSS_MSLEEP(1);
-		if (gpio_is_valid(ctrl_pdata->disp_n5_gpio))
-			gpio_direction_output((ctrl_pdata->disp_n5_gpio) , 0);
-		MDSS_MSLEEP(1);
-		if (gpio_is_valid(ctrl_pdata->disp_p5_gpio))
-			gpio_direction_output((ctrl_pdata->disp_p5_gpio) , 0);
-		MDSS_MSLEEP(1);
-		if (gpio_is_valid(ctrl_pdata->disp_en_gpio))
-			gpio_direction_output((ctrl_pdata->disp_en_gpio), 0);
-		MDSS_MSLEEP(10);
+
+		/*NOTE: Base on this BSP display initial sequence architecture.
+		   LK have initial gpio when boot to  kernel don't request gpio. 
+		   When first power off display, we need to request gpio.
+		   Or there is power consumption issue*/
+
+		if((DisplayGpioReady==1)&&(display_on_in_boot))
+		{
+			rc = mdss_dsi_request_gpios(ctrl_pdata);
+			DisplayGpioReady=2;
+			printk("[DISPLAY]%s: Request gpio for release fist deinit\n", __func__ );
+		}
+
+
+		if(DisplayGpioInit)
+		{
+			if (gpio_is_valid(ctrl_pdata->disp_en_gpio)) {
+				gpio_set_value((ctrl_pdata->disp_en_gpio), 0);
+				gpio_free(ctrl_pdata->disp_en_gpio);
+			}
+
+			if (gpio_is_valid(ctrl_pdata->disp_n5_gpio))
+			{
+				gpio_set_value((ctrl_pdata->disp_n5_gpio) , 0);
+				gpio_free(ctrl_pdata->disp_n5_gpio);
+			}
+			MDSS_MSLEEP(10);
+			if (gpio_is_valid(ctrl_pdata->disp_p5_gpio))
+			{
+				gpio_set_value((ctrl_pdata->disp_p5_gpio) , 0);
+				gpio_free(ctrl_pdata->disp_p5_gpio);
+			}
+			MDSS_MSLEEP(10);
+			gpio_set_value((ctrl_pdata->rst_gpio), 0);
+			gpio_free(ctrl_pdata->rst_gpio);
+
+		}
+		DisplayGpioInit = 0;
+
+#if 0
+		if (gpio_is_valid(ctrl_pdata->mode_gpio))
+			gpio_free(ctrl_pdata->mode_gpio);
+#endif
 	}
 	/* MM-KW-DISPLAY-panel-00-} */
 	printk("[DISPLAY]%s: -\n", __func__);
+	return rc;
+
 }
 
 static char caset[] = {0x2a, 0x00, 0x00, 0x03, 0x00};	/* DTYPE_DCS_LWRITE */
@@ -429,6 +588,16 @@ static void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
 		break;
 	case BL_DCS_CMD:
 		mdss_dsi_panel_bklt_dcs(ctrl_pdata, bl_level);
+		if (mdss_dsi_is_master_ctrl(ctrl_pdata)) {
+			struct mdss_dsi_ctrl_pdata *sctrl =
+				mdss_dsi_get_slave_ctrl();
+			if (!sctrl) {
+				pr_err("%s: Invalid slave ctrl data\n",
+					__func__);
+				return;
+			}
+			mdss_dsi_panel_bklt_dcs(sctrl, bl_level);
+		}
 		break;
 	default:
 		pr_err("%s: Unknown bl_ctrl configuration\n",
@@ -802,6 +971,35 @@ static int mdss_dsi_parse_reset_seq(struct device_node *np,
 	return 0;
 }
 
+static int mdss_dsi_parse_panel_features(struct device_node *np,
+	struct mdss_dsi_ctrl_pdata *ctrl)
+{
+	struct mdss_panel_info *pinfo;
+
+	if (!np || !ctrl) {
+		pr_err("%s: Invalid arguments\n", __func__);
+		return -ENODEV;
+	}
+
+	pinfo = &ctrl->panel_data.panel_info;
+
+	pinfo->cont_splash_enabled = of_property_read_bool(np,
+		"qcom,cont-splash-enabled");
+
+	pinfo->partial_update_enabled = of_property_read_bool(np,
+		"qcom,partial-update-enabled");
+	pr_info("%s:%d Partial update %s\n", __func__, __LINE__,
+		(pinfo->partial_update_enabled ? "enabled" : "disabled"));
+	if (pinfo->partial_update_enabled)
+		ctrl->partial_update_fnc = mdss_dsi_panel_partial_update;
+
+	pinfo->ulps_feature_enabled = of_property_read_bool(np,
+		"qcom,ulps-enabled");
+	pr_info("%s: ulps feature %s", __func__,
+		(pinfo->ulps_feature_enabled ? "enabled" : "disabled"));
+
+	return 0;
+}
 
 static int mdss_panel_parse_dt(struct device_node *np,
 			struct mdss_dsi_ctrl_pdata *ctrl_pdata)
@@ -1011,11 +1209,11 @@ static int mdss_panel_parse_dt(struct device_node *np,
 	pinfo->mipi.insert_dcs_cmd =
 			(!rc ? tmp : 1);
 	rc = of_property_read_u32(np,
-		"qcom,mdss-dsi-te-v-sync-continue-lines", &tmp);
+		"qcom,mdss-dsi-wr-mem-continue", &tmp);
 	pinfo->mipi.wr_mem_continue =
 			(!rc ? tmp : 0x3c);
 	rc = of_property_read_u32(np,
-		"qcom,mdss-dsi-te-v-sync-rd-ptr-irq-line", &tmp);
+		"qcom,mdss-dsi-wr-mem-start", &tmp);
 	pinfo->mipi.wr_mem_start =
 			(!rc ? tmp : 0x2c);
 	rc = of_property_read_u32(np,
@@ -1025,7 +1223,7 @@ static int mdss_panel_parse_dt(struct device_node *np,
 	rc = of_property_read_u32(np, "qcom,mdss-dsi-virtual-channel-id", &tmp);
 	pinfo->mipi.vc = (!rc ? tmp : 0);
 	pinfo->mipi.rgb_swap = DSI_RGB_SWAP_RGB;
-	data = of_get_property(np, "mdss-dsi-color-order", NULL);
+	data = of_get_property(np, "qcom,mdss-dsi-color-order", NULL);
 	if (data) {
 		if (!strcmp(data, "rgb_swap_rbg"))
 			pinfo->mipi.rgb_swap = DSI_RGB_SWAP_RBG;
@@ -1052,9 +1250,14 @@ static int mdss_panel_parse_dt(struct device_node *np,
 	rc = of_property_read_u32(np, "qcom,mdss-dsi-t-clk-post", &tmp);
 	pinfo->mipi.t_clk_post = (!rc ? tmp : 0x03);
 
+	pinfo->mipi.rx_eot_ignore = of_property_read_bool(np,
+		"qcom,mdss-dsi-rx-eot-ignore");
+	pinfo->mipi.tx_eot_append = of_property_read_bool(np,
+		"qcom,mdss-dsi-tx-eot-append");
+
 	rc = of_property_read_u32(np, "qcom,mdss-dsi-stream", &tmp);
 	pinfo->mipi.stream = (!rc ? tmp : 0);
-
+#if 0
 	data = of_get_property(np, "qcom,mdss-dsi-panel-mode-gpio-state", NULL);
 	if (data) {
 		if (!strcmp(data, "high"))
@@ -1064,7 +1267,7 @@ static int mdss_panel_parse_dt(struct device_node *np,
 	} else {
 		pinfo->mode_gpio_state = MODE_GPIO_NOT_VALID;
 	}
-
+#endif
 	rc = of_property_read_u32(np, "qcom,mdss-dsi-panel-framerate", &tmp);
 	pinfo->mipi.frame_rate = (!rc ? tmp : 60);
 	rc = of_property_read_u32(np, "qcom,mdss-dsi-panel-clockrate", &tmp);
@@ -1108,10 +1311,16 @@ static int mdss_panel_parse_dt(struct device_node *np,
 		"qcom,mdss-dsi-reset-sequence");
 
 	mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->on_cmds,
-		"qcom,mdss-dsi-on-command", "qcom,mdss-dsi-on-command-state");
+		"qcom,mdss-dsi-on-command-63", "qcom,mdss-dsi-on-command-state");
 
 	mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->off_cmds,
 		"qcom,mdss-dsi-off-command", "qcom,mdss-dsi-off-command-state");
+
+	rc = mdss_dsi_parse_panel_features(np, ctrl_pdata);
+	if (rc) {
+		pr_err("%s: failed to parse panel features\n", __func__);
+		goto error;
+	}
 
 	return 0;
 
@@ -1125,13 +1334,15 @@ int mdss_dsi_panel_init(struct device_node *node,
 {
 	int rc = 0;
 	static const char *panel_name;
-	bool cont_splash_enabled;
-	bool partial_update_enabled;
+	struct mdss_panel_info *pinfo;
 
-	if (!node) {
-		pr_err("%s: no panel node\n", __func__);
+	if (!node || !ctrl_pdata) {
+		pr_err("%s: Invalid arguments\n", __func__);
 		return -ENODEV;
 	}
+
+	pinfo = &ctrl_pdata->panel_data.panel_info;
+	printk("[DISPLAY]%s: ++\n", __func__);
 
 	pr_debug("%s:%d\n", __func__, __LINE__);
 	panel_name = of_get_property(node, "qcom,mdss-dsi-panel-name", NULL);
@@ -1150,41 +1361,46 @@ int mdss_dsi_panel_init(struct device_node *node,
 		return rc;
 	}
 
-	if (cmd_cfg_cont_splash)
-		cont_splash_enabled = of_property_read_bool(node,
-				"qcom,cont-splash-enabled");
-	else
-		cont_splash_enabled = false;
-	if (!cont_splash_enabled) {
-		pr_info("%s:%d Continuous splash flag not found.\n",
-				__func__, __LINE__);
-		ctrl_pdata->panel_data.panel_info.cont_splash_enabled = 0;
-	} else {
-		pr_info("%s:%d Continuous splash flag enabled.\n",
-				__func__, __LINE__);
-	/*PERI-AC-Display_init-00+{*/
-	/*Qualcomm have enable display in bootloader but S1 loader didn't enable
-    	    panel so the display init flow isn't the same as Qualcomm.*/
-		ctrl_pdata->panel_data.panel_info.cont_splash_enabled = 0;
-//		ctrl_pdata->panel_data.panel_info.cont_splash_enabled = 1;
-	/*PERI-AC-Display_init-00+}*/
-	}
+	if (!cmd_cfg_cont_splash)
+		pinfo->cont_splash_enabled = false;
 
-	partial_update_enabled = of_property_read_bool(node,
-						"qcom,partial-update-enabled");
-	if (partial_update_enabled) {
-		pr_info("%s:%d Partial update enabled.\n", __func__, __LINE__);
-		ctrl_pdata->panel_data.panel_info.partial_update_enabled = 1;
-		ctrl_pdata->partial_update_fnc = mdss_dsi_panel_partial_update;
-	} else {
-		pr_info("%s:%d Partial update disabled.\n", __func__, __LINE__);
-		ctrl_pdata->panel_data.panel_info.partial_update_enabled = 0;
-		ctrl_pdata->partial_update_fnc = NULL;
-	}
+	/*Get LK command line display_status=on or off*/
+	pinfo->cont_splash_enabled = display_on_in_boot;
+
+
+
+	pr_info("%s: Continuous splash %s", __func__,
+		pinfo->cont_splash_enabled ? "enabled" : "disabled");
 
 	ctrl_pdata->on = mdss_dsi_panel_on;
 	ctrl_pdata->off = mdss_dsi_panel_off;
 	ctrl_pdata->panel_data.set_backlight = mdss_dsi_panel_bl_ctrl;
+	printk("[DISPLAY]%s: --\n", __func__);
 
 	return 0;
 }
+
+static int __init display_on_in_boot_setup(char *str)
+{
+	if (!str)
+		return 0;
+	if (!strncmp(str, "on", 2))
+		display_on_in_boot = true;
+
+	printk("[DISPLAY]%s: --display_on_in_boot=%d\n", __func__,display_on_in_boot);
+	return 0;
+}
+__setup("display_status=", display_on_in_boot_setup);
+
+static int __init continous_splash_setup(char *str)
+{
+	if (!str)
+		return 0;
+	if (!strncmp(str, "on", 2))
+		display_on_in_boot = true;
+
+	printk("[DISPLAY]%s: --display_on_in_boot=%d\n", __func__,display_on_in_boot);
+	return 0;
+}
+__setup("display_status=", continous_splash_setup);
+

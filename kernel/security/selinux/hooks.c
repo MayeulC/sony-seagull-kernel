@@ -8,6 +8,7 @@
  *	      Wayne Salamon, <wsalamon@nai.com>
  *	      James Morris <jmorris@redhat.com>
  *
+ * Copyright(C) 2011-2013 Foxconn International Holdings, Ltd. All rights reserved.
  *  Copyright (C) 2001,2002 Networks Associates Technology, Inc.
  *  Copyright (C) 2003-2008 Red Hat, Inc., James Morris <jmorris@redhat.com>
  *					   Eric Paris <eparis@redhat.com>
@@ -17,7 +18,6 @@
  *	Paul Moore <paul@paul-moore.com>
  *  Copyright (C) 2007 Hitachi Software Engineering Co., Ltd.
  *		       Yuichi Nakamura <ynakam@hitachisoft.jp>
- *  Copyright(C) 2011-2013 Foxconn International Holdings, Ltd. All rights reserved.
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License version 2,

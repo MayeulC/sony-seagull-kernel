@@ -142,7 +142,10 @@ int ion_heap_pages_zero(struct page **pages, int num_pages)
 			return -ENOMEM;
 
 		/*
-		 * invalidate the cache to pick up the zeroing
+		 * We have to invalidate the cache here because there
+		 * might be dirty lines to these physical pages (which
+		 * we don't care about) that could get written out at
+		 * any moment.
 		 */
 		for (k = 0; k < npages_to_vmap; k++) {
 			void *p = kmap_atomic(pages[i + k]);
@@ -327,7 +330,6 @@ static size_t _ion_heap_freelist_drain(struct ion_heap *heap, size_t size,
 		if (total_drained >= size)
 			break;
 		list_del(&buffer->list);
-
 		heap->free_list_size -= buffer->size;
 		if (skip_pools)
 			buffer->flags |= ION_FLAG_FREED_FROM_SHRINKER;

@@ -110,6 +110,7 @@ static inline void df_seek( struct file *file_pointer, unsigned offset, unsigned
 
 static inline bool df_read( struct file *file_pointer, char *buffer, unsigned length, unsigned *return_count )
 {
+	int	read_count;
 	if( !return_count )
 	{
 		printk( "TTUCH : The return pointer is NULL\n" );
@@ -117,17 +118,20 @@ static inline bool df_read( struct file *file_pointer, char *buffer, unsigned le
 	}
 
 	set_fs( get_ds() );
-	if( ( *return_count = file_pointer->f_op->read( file_pointer, buffer, length, &file_pointer->f_pos ) ) < 0 )
+	if( ( read_count = file_pointer->f_op->read( file_pointer, buffer, length, &file_pointer->f_pos ) ) < 0 )
 	{
 		printk( "TTUCH : Failed to read data from file\n" );
 		return	false;
 	}
+
+	*return_count	= read_count;
 
 	return	true;
 }
 
 static inline bool df_write( struct file *file_pointer, char *buffer, unsigned length, unsigned *return_count )
 {
+	int	write_count;
 	if( !return_count )
 	{
 		printk( "TTUCH : The return pointer is NULL\n" );
@@ -135,11 +139,13 @@ static inline bool df_write( struct file *file_pointer, char *buffer, unsigned l
 	}
 
 	set_fs( get_ds() );
-	if( ( *return_count = file_pointer->f_op->write( file_pointer, buffer, length, &file_pointer->f_pos ) ) < 0 )
+	if( ( write_count = file_pointer->f_op->write( file_pointer, buffer, length, &file_pointer->f_pos ) ) < 0 )
 	{
 		printk( "TTUCH : Failed to write data to file\n" );
 		return	false;
 	}
+
+	*return_count	= write_count;
 
 	return	true;
 }

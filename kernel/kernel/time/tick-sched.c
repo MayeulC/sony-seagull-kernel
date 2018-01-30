@@ -1,10 +1,10 @@
 /*
  *  linux/kernel/time/tick-sched.c
  *
+ *  Copyright(C) 2011-2013 Foxconn International Holdings, Ltd. All rights reserved.
  *  Copyright(C) 2005-2006, Thomas Gleixner <tglx@linutronix.de>
  *  Copyright(C) 2005-2007, Red Hat, Inc., Ingo Molnar
  *  Copyright(C) 2006-2007  Timesys Corp., Thomas Gleixner
- *  Copyright(C) 2011-2013 Foxconn International Holdings, Ltd. All rights reserved.
  *
  *  No idle tick implementation for low and high resolution timers
  *
@@ -288,6 +288,7 @@ static void tick_nohz_stop_sched_tick(struct tick_sched *ts)
 	struct clock_event_device *dev = __get_cpu_var(tick_cpu_device).evtdev;
 	u64 time_delta;
 	int cpu;
+	unsigned long rcu_delta_jiffies;
 
 	cpu = smp_processor_id();
 	ts = &per_cpu(tick_cpu_sched, cpu);
@@ -332,7 +333,7 @@ static void tick_nohz_stop_sched_tick(struct tick_sched *ts)
 		time_delta = timekeeping_max_deferment();
 	} while (read_seqretry(&xtime_lock, seq));
 
-	if (rcu_needs_cpu(cpu) || printk_needs_cpu(cpu) ||
+	if (rcu_needs_cpu(cpu, &rcu_delta_jiffies) || printk_needs_cpu(cpu) || 
 	    arch_needs_cpu(cpu)) {
 		next_jiffies = last_jiffies + 1;
 		delta_jiffies = 1;
@@ -340,6 +341,10 @@ static void tick_nohz_stop_sched_tick(struct tick_sched *ts)
 		/* Get the next timer wheel timer */
 		next_jiffies = get_next_timer_interrupt(last_jiffies);
 		delta_jiffies = next_jiffies - last_jiffies;
+		if (rcu_delta_jiffies < delta_jiffies) {
+			next_jiffies = last_jiffies + rcu_delta_jiffies;
+			delta_jiffies = rcu_delta_jiffies;
+			} 
 	}
 	/*
 	 * Do not stop the tick, if we are only one off

@@ -501,6 +501,7 @@ struct fsg_config {
 /*CONN-JY-PCCOMPANION-00+{*/
 	char			can_stall;
 };
+#define TOC_FORMAT2_SIZE		(11 * 3 + 4)
 
 struct fsg_dev {
 	struct usb_function	function;
@@ -1583,6 +1584,8 @@ static int do_read_toc(struct fsg_common *common, struct fsg_buffhd *bh)
 	int		msf = common->cmnd[1] & 0x02;
 	int		start_track = common->cmnd[6];
 	u8		*buf = (u8 *)bh->buf;
+	u8		format;
+	int		offset;
 
 	if ((common->cmnd[1] & ~0x02) != 0 ||	/* Mask away MSF */
 			start_track > 1) {
@@ -1590,18 +1593,55 @@ static int do_read_toc(struct fsg_common *common, struct fsg_buffhd *bh)
 		return -EINVAL;
 	}
 
-	memset(buf, 0, 20);
-	buf[1] = (20-2);		/* TOC data length */
-	buf[2] = 1;			/* First track number */
-	buf[3] = 1;			/* Last track number */
-	buf[5] = 0x16;			/* Data track, copying allowed */
-	buf[6] = 0x01;			/* Only track is number 1 */
-	store_cdrom_address(&buf[8], msf, 0);
+	format = common->cmnd[2] & 0x07;
+	/* SFF-8020i: When Format in Byte 2 is zero, then Byte 9 is used. */
+	if (format == 0)
+		format = (common->cmnd[9] >> 6) & 0x03;
 
-	buf[13] = 0x16;			/* Lead-out track is data */
-	buf[14] = 0xAA;			/* Lead-out track number */
-	store_cdrom_address(&buf[16], msf, curlun->num_sectors);
-	return 20;
+	if (format == 0) {
+		memset(buf, 0, 20);
+		buf[1] = (20-2);	/* TOC data length */
+		buf[2] = 1;		/* First track number */
+		buf[3] = 1;		/* Last track number */
+		buf[5] = 0x16;		/* Data track, copying allowed */
+		buf[6] = 0x01;		/* Only track is number 1 */
+		store_cdrom_address(&buf[8], msf, 0);
+
+		buf[13] = 0x16;		/* Lead-out track is data */
+		buf[14] = 0xAA;		/* Lead-out track number */
+		store_cdrom_address(&buf[16], msf, curlun->num_sectors);
+		return 20;
+	} else if (format == 0x02) {
+		memset(buf, 0, TOC_FORMAT2_SIZE);
+		buf[1] = (TOC_FORMAT2_SIZE-2);	/* TOC data length */
+		buf[2] = 1;			/* First Session Number */
+		buf[3] = 1;			/* Last Session Number */
+		offset = 4;
+
+		buf[offset] = 1;	/* Session Number */
+		buf[offset + 1] = 0x16;	/* Data track, copying allowed */
+		buf[offset + 2] = 0;	/* TNO */
+		buf[offset + 3] = 0xA0;	/* Point */
+		buf[offset + 8] = 1;	/* First track number */
+		buf[offset + 9] = 0;	/* Disc Type */
+		offset += 11;
+
+		buf[offset] = 1;	/* Session Number */
+		buf[offset + 1] = 0x16;	/* Data track, copying allowed */
+		buf[offset + 2] = 0;	/* TNO */
+		buf[offset + 3] = 0xA1;	/* Point */
+		buf[offset + 8] = 1;	/* Last track number */
+		offset += 11;
+
+		buf[offset] = 1;	/* Session Number */
+		buf[offset + 1] = 0x16;	/* Data track, copying allowed */
+		buf[offset + 2] = 0;	/* TNO */
+		buf[offset + 3] = 0xA2;	/* Point */
+		store_cdrom_address(&buf[offset + 7], msf, curlun->num_sectors);
+		return TOC_FORMAT2_SIZE;
+	}
+	curlun->sense_data = SS_INVALID_FIELD_IN_CDB;
+	return -EINVAL;
 }
 
 static int do_mode_sense(struct fsg_common *common, struct fsg_buffhd *bh)
@@ -2417,7 +2457,7 @@ static int do_scsi_command(struct fsg_common *common)
 		common->data_size_from_cmnd =
 			get_unaligned_be16(&common->cmnd[7]);
 		reply = check_command(common, 10, DATA_DIR_TO_HOST,
-				      (7<<6) | (1<<1), 1,
+				      (0x0f<<6) | (1<<1), 1,
 				      "READ TOC");
 		if (reply == 0)
 			reply = do_read_toc(common, bh);

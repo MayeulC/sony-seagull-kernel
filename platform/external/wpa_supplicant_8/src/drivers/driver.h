@@ -46,6 +46,15 @@ enum reg_change_initiator {
 	REGDOM_SET_BY_USER,
 	REGDOM_SET_BY_DRIVER,
 	REGDOM_SET_BY_COUNTRY_IE,
+	REGDOM_BEACON_HINT,
+};
+
+enum reg_type {
+	REGDOM_TYPE_UNKNOWN,
+	REGDOM_TYPE_COUNTRY,
+	REGDOM_TYPE_WORLD,
+	REGDOM_TYPE_CUSTOM_WORLD,
+	REGDOM_TYPE_INTERSECTION,
 };
 
 /**
@@ -3305,7 +3314,26 @@ enum wpa_event_type {
 	* entry for one frequency. The survey data can be os_malloc()'d and
 	* then os_free()'d, so the event callback must only copy data.
 	*/
-	EVENT_SURVEY
+	EVENT_SURVEY,
+
+	/**
+	 * EVENT_SCAN_STARTED - Scan started
+	 *
+	 * This indicates that driver has started a scan operation either based
+	 * on a request from wpa_supplicant/hostapd or from another application.
+	 * EVENT_SCAN_RESULTS is used to indicate when the scan has been
+	 * completed (either successfully or by getting cancelled).
+	 */
+	EVENT_SCAN_STARTED,
+
+	/**
+	 * EVENT_AVOID_FREQUENCIES - Received avoid frequency range
+	 *
+	 * This event indicates a set of frequency ranges that should be avoided
+	 * to reduce issues due to interference or internal co-existence
+	 * information in the driver.
+	 */
+	EVENT_AVOID_FREQUENCIES
 };
 
 
@@ -4000,10 +4028,21 @@ union wpa_event_data {
 	/**
 	 * channel_list_changed - Data for EVENT_CHANNEL_LIST_CHANGED
 	 * @initiator: Initiator of the regulatory change
+	 * @type: Regulatory change type
+	 * @alpha2: Country code (or "" if not available)
 	 */
 	struct channel_list_changed {
 		enum reg_change_initiator initiator;
+		enum reg_type type;
+		char alpha2[3];
 	} channel_list_changed;
+
+	/**
+	 * freq_range - List of frequency ranges
+	 *
+	 * This is used as the data with EVENT_AVOID_FREQUENCIES.
+	 */
+	struct wpa_freq_range_list freq_range;
 };
 
 /**

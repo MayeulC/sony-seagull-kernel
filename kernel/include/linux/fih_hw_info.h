@@ -31,6 +31,7 @@ typedef enum
   PHASE_PQ   = 0x50,
   PHASE_TP   = 0x60,
   PHASE_MP   = 0x70,
+  PHASE_MP_PCN3000 = 0x80,
   PHASE_END  = 0xFE,
   PHASE_MAX  = 0XFF,
 }fih_product_phase_type;
@@ -73,6 +74,7 @@ static const ID2STR_MAP phase_id_map[] =
   {PHASE_PQ,   "PQ",   2},
   {PHASE_TP,   "TP",   2},
   {PHASE_MP,   "MP",   2},
+  {PHASE_MP_PCN3000, "MP_PCN3000", 10},
   {PHASE_END,  "END",  3},
   {PHASE_MAX, "unknown", 7}
 };

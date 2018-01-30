@@ -2,7 +2,7 @@
  *
  * Copyright (C) 2008 Google, Inc.
  * Author: Brian Swetland <swetland@google.com>
- * Copyright (c) 2009-2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2009-2014, The Linux Foundation. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -324,6 +324,10 @@ struct msm_otg_platform_data {
  * @regs: ioremapped register base address.
  * @inputs: OTG state machine inputs(Id, SessValid etc).
  * @sm_work: OTG state machine work.
+  * @pm_suspended: OTG device is system(PM) suspended.
+  * @pm_notify: Notifier to receive system wide PM transition events.
+                          It is used to defer wakeup events processing until
+                          system is RESUMED.
  * @in_lpm: indicates low power mode (LPM) state.
  * @async_int: IRQ line on which ASYNC interrupt arrived in LPM.
  * @cur_power: The amount of mA available from downstream port.
@@ -347,9 +351,9 @@ struct msm_otg_platform_data {
  *               very slow plug in of wall charger.
  * @ui_enabled: USB Intterupt is enabled or disabled.
  * @pm_done: It is used to increment the pm counter using pm_runtime_get_sync.
- *	     This handles the race case when PM resume thread returns before
- *	     the charger detection starts. When USB is disconnected pm_done
- *	     is set to true.
+	     This handles the race case when PM resume thread returns before
+	     the charger detection starts. When USB is disconnected pm_done
+	     is set to true.
  */
 struct msm_otg {
 	struct usb_phy phy;
@@ -383,10 +387,12 @@ struct msm_otg {
 #define B_BUS_REQ	16
 #define MHL	        17
 #define B_FALSE_SDP	18
+#define VBUS_DROP_DET  19
 	unsigned long inputs;
 	struct work_struct sm_work;
 	bool sm_work_pending;
 	atomic_t pm_suspended;
+	struct notifier_block pm_notify;
 	atomic_t in_lpm;
 	int async_int;
 	unsigned cur_power;
@@ -466,7 +472,8 @@ struct msm_otg {
 	bool ext_chg_active;
 	struct completion ext_chg_wait;
 	bool pm_done;
-	int ui_enabled;
+	int ui_enabled;	
+	struct qpnp_vadc_chip	*vadc_dev;
 };
 
 struct ci13xxx_platform_data {

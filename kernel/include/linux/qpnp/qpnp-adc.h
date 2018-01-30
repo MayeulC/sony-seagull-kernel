@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
- * Copyright (C) 2011-2013 Foxconn International Holdings, Ltd. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -21,6 +20,7 @@
 
 #include <linux/kernel.h>
 #include <linux/list.h>
+#include <linux/qpnp-revid.h>
 /**
  * enum qpnp_vadc_channels - QPNP AMUX arbiter channels
  */
@@ -573,12 +573,10 @@ enum qpnp_adc_meas_timer_3 {
 /**
  * enum qpnp_adc_meas_timer_select - Selects the timer for which
  *	the appropriate polling frequency is set.
- * %ADC_MEAS_TIMER_SELECT1 - Select this timer if the client is USB_ID.
- * %ADC_MEAS_TIMER_SELECT2 - Select this timer if the client is batt_therm.
- * %ADC_MEAS_TIMER_SELECT3 - The timer is added only for completion. It is
- *	not used by kernel space clients and user space clients cannot set
- *	the polling frequency. The driver will set a appropriate polling
- *	frequency to measure the user space clients from qpnp_adc_meas_timer_3.
+ * %ADC_MEAS_TIMER_SELECT1 - Select this timer for measurement polling interval
+ *				for 1 second.
+ * %ADC_MEAS_TIMER_SELECT2 - Select this timer for 500ms measurement interval.
+ * %ADC_MEAS_TIMER_SELECT3 - Select this timer for 5 second interval.
  */
 enum qpnp_adc_meas_timer_select {
 	ADC_MEAS_TIMER_SELECT1 = 0,
@@ -840,6 +838,7 @@ struct qpnp_vadc_chan_properties {
 	enum qpnp_adc_meas_timer_2		meas_interval2;
 	enum qpnp_adc_tm_channel_select		tm_channel_select;
 	enum qpnp_state_request			state_request;
+	enum qpnp_adc_calib_type		calib_type;
 	struct qpnp_vadc_linear_graph	adc_graph[2];
 };
 
@@ -883,6 +882,7 @@ struct qpnp_adc_amux {
 	enum qpnp_adc_scale_fn_type		adc_scale_fn;
 	enum qpnp_adc_fast_avg_ctl		fast_avg_setup;
 	enum qpnp_adc_hw_settle_time		hw_settle_time;
+	enum qpnp_adc_calib_type		calib_type;
 };
 
 /**
@@ -1002,14 +1002,26 @@ struct qpnp_adc_drv {
  * @chan_prop - Represent the channel properties of the ADC.
  */
 struct qpnp_adc_amux_properties {
-	uint32_t			amux_channel;
-	uint32_t			decimation;
-	uint32_t			mode_sel;
-	uint32_t			hw_settle_time;
-	uint32_t			fast_avg_setup;
-	enum qpnp_vadc_trigger		trigger_channel;
+	uint32_t				amux_channel;
+	uint32_t				decimation;
+	uint32_t				mode_sel;
+	uint32_t				hw_settle_time;
+	uint32_t				fast_avg_setup;
+	enum qpnp_vadc_trigger			trigger_channel;
 	struct qpnp_vadc_chan_properties	chan_prop[0];
 };
+
+/* SW index's for PMIC type and version used by QPNP VADC and IADC */
+#define QPNP_REV_ID_8941_3_1	1
+#define QPNP_REV_ID_8026_1_0	2
+#define QPNP_REV_ID_8026_2_0	3
+#define QPNP_REV_ID_8110_1_0	4
+#define QPNP_REV_ID_8026_2_1	5
+#define QPNP_REV_ID_8110_2_0	6
+#define QPNP_REV_ID_8026_2_2	7
+#define QPNP_REV_ID_8941_3_0	8
+#define QPNP_REV_ID_8941_2_0	9
+
 
 /* Public API */
 #if defined(CONFIG_SENSORS_QPNP_ADC_VOLTAGE)				\
@@ -1375,6 +1387,7 @@ int32_t qpnp_vbat_sns_comp_result(struct qpnp_vadc_chip *dev,
  * @dev:	Structure device node.
  * returns internal mapped PMIC number and revision id.
  */
+int qpnp_adc_get_revid_version(struct device *dev);
 #else
 static inline int32_t qpnp_vadc_read(struct qpnp_vadc_chip *dev,
 				uint32_t channel,
@@ -1487,6 +1500,8 @@ static inline int32_t qpnp_vadc_iadc_sync_complete_request(
 { return -ENXIO; }
 static inline int32_t qpnp_vbat_sns_comp_result(struct qpnp_vadc_chip *dev,
 						int64_t *result)
+{ return -ENXIO; }
+static inline int qpnp_adc_get_revid_version(struct device *dev)
 { return -ENXIO; }
 #endif
 

@@ -492,14 +492,19 @@ static int fb_notifier_callback(struct notifier_block *self,
 	int *blank;
 	struct cyttsp4_mt_data *md =
 		container_of(self, struct cyttsp4_mt_data, fb_notif);
-	struct device *dev = &md->ttsp->dev;
+	struct device *dev;
+
+	if( !md || !md->ttsp )
+		return	0;
+
+	dev = &md->ttsp->dev;
 
     	dev_dbg(dev, "%s\n", __func__);
     	
     	printk( "ETUCH : Notifier callback" );
 
-	if (evdata && evdata->data && event == FB_EVENT_BLANK &&
-		md && md->ttsp) {
+	if (evdata && evdata->data && event == FB_EVENT_BLANK && md && md->ttsp)
+	{
 		blank = evdata->data;
 		if (*blank == FB_BLANK_UNBLANK && md->is_suspended == true)
 		{

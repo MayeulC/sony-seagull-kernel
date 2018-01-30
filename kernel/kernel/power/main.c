@@ -599,11 +599,18 @@ static ssize_t wake_unlock_store(struct kobject *kobj,
 {
 	//CORE-BH-PMSWakelockInfo-01*[
 	int error = 0;
+	//CORE-BH-PMSWakelockInfo-02+[
+	#ifdef CONFIG_FIH_DUMP_WAKELOCK
+	char *pid = NULL;
+	char *tag = NULL;
+	#endif
+	//CORE-BH-PMSWakelockInfo-02+]
 	
 	if (!strncmp(buf,"PMS^",4))
 	{
 		#ifdef CONFIG_FIH_DUMP_WAKELOCK
-		remove_pms_wakelock_info();
+		getPMSWakeLockInfo((char *)buf,&pid,&tag); //CORE-BH-PMSWakelockInfo-02+
+		remove_pms_wakelock_info(pid, tag); //CORE-BH-PMSWakelockInfo-02*
 		#endif
 		return n;
 	}

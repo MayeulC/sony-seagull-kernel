@@ -10,8 +10,10 @@
   Author:
         Bryan Hsieh May-30-2010
 -------------------------------------------------------------------------------
-** Copyright (C) 2014 Foxconn International Holdings, Ltd. All rights reserved.
-**
+** FIHSPEC CONFIDENTIAL
+** Copyright(C) 2011-2013 Foxconn International Holdings, Ltd. All rights reserved.
+** Copyright(c) 2009 FIHSPEC Corporation. All Rights Reserved.
+**^M
 ** The source code contained or described herein and all documents related
 ** to the source code (Material) are owned by FIHSPEC Technology Corporation.
 ** The Material is protected by worldwide copyright and trade secret laws and

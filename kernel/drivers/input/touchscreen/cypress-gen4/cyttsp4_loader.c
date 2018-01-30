@@ -984,7 +984,7 @@ static int cyttsp4_upgrade_firmware(struct cyttsp4_device *ttsp,
 		}
 	}
 
-	cyttsp4_release_exclusive(ttsp);
+	(void)cyttsp4_release_exclusive(ttsp);
 	cyttsp4_request_restart(ttsp, false);
 
 exit:

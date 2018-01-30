@@ -44,6 +44,7 @@ typedef enum
     DBG_USB_ENG_MODE_CFG = 10,	/*CONN-JY-OpenUSBbyConfigTA-00+*/
     DBG_SUBSYSTEM_RAMDUMP_CFG = 11,/*CORE-TH-SubSystemRestart-00+*/
     DBG_SUBSYSTEM_RAMDUMP_RPM_LOG_CFG = 12, /*CORE-TH-SubSystemRestart-00+*/
+    DBG_FORCE_TO_KEEP_DEBUG_CFG = 13,	//CORE-KH-KeepDebugSetting-00-a
 
 	/* bits 28-31 will not be cleared when data wiped */
     DBG_EN_POWER_OFF_CHG_LOG = 31,			/* CORE-EL-POWER_OFF_CHG_LOG-00+ */

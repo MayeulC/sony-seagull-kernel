@@ -207,6 +207,7 @@ static void wpa_supplicant_timeout(void *eloop_ctx, void *timeout_ctx)
 		bssid = wpa_s->pending_bssid;
 	wpa_msg(wpa_s, MSG_INFO, "Authentication with " MACSTR " timed out.",
 		MAC2STR(bssid));
+	wpa_msg_ctrl(wpa_s, MSG_INFO, WPA_EVENT_ASSOC_TOUT);  //CONN-FY-DMS06092353-T_Mobile_Retry_Mechanism
 	wpa_blacklist_add(wpa_s, bssid);
 	wpa_sm_notify_disassoc(wpa_s->wpa);
 	wpa_supplicant_deauthenticate(wpa_s, WLAN_REASON_DEAUTH_LEAVING);
@@ -481,6 +482,9 @@ static void wpa_supplicant_cleanup(struct wpa_supplicant *wpa_s)
 
 	os_free(wpa_s->next_scan_freqs);
 	wpa_s->next_scan_freqs = NULL;
+
+	os_free(wpa_s->manual_scan_freqs);
+	wpa_s->manual_scan_freqs = NULL;
 
 	gas_query_deinit(wpa_s->gas);
 	wpa_s->gas = NULL;
@@ -3632,7 +3636,8 @@ void wpa_supplicant_deinit(struct wpa_global *global)
 	os_free(global->params.override_driver);
 	os_free(global->params.override_ctrl_interface);
 
-	os_free(global->p2p_disallow_freq);
+	os_free(global->p2p_disallow_freq.range);
+	os_free(global->p2p_go_avoid_freq.range);
 	os_free(global->add_psk);
 
 	os_free(global);

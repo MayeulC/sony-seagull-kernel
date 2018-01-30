@@ -306,6 +306,7 @@
 		qcom,hsusb-otg-otg-control = <2>;
 		qcom,dp-manual-pullup;
 		qcom,ahb-async-bridge-bypass;
+		qcom,usbin-vadc = <&pm8226_vadc>;
 
 		qcom,msm-bus,name = "usb";
 		qcom,msm-bus,num-cases = <3>;
@@ -780,6 +781,7 @@
 
 		qcom,bus-width = <8>;
 
+		qcom,cpu-dma-latency-us = <701>;
 		qcom,msm-bus,name = "sdcc1";
 		qcom,msm-bus,num-cases = <8>;
 		qcom,msm-bus,num-paths = <1>;
@@ -807,6 +809,7 @@
 
 		qcom,bus-width = <8>;
 
+		qcom,cpu-dma-latency-us = <701>;
 		qcom,msm-bus,name = "sdhc1";
 		qcom,msm-bus,num-cases = <8>;
 		qcom,msm-bus,num-paths = <1>;
@@ -837,6 +840,7 @@
 
 		qcom,bus-width = <4>;
 
+		qcom,cpu-dma-latency-us = <701>;
 		qcom,msm-bus,name = "sdcc2";
 		qcom,msm-bus,num-cases = <8>;
 		qcom,msm-bus,num-paths = <1>;
@@ -864,6 +868,7 @@
 
 		qcom,bus-width = <4>;
 
+		qcom,cpu-dma-latency-us = <701>;
 		qcom,msm-bus,name = "sdhc2";
 		qcom,msm-bus,num-cases = <8>;
 		qcom,msm-bus,num-paths = <1>;
@@ -890,6 +895,7 @@
 		reg-names = "core_mem", "dml_mem", "bam_mem";
 
 		qcom,bus-width = <4>;
+		qcom,cpu-dma-latency-us = <701>;
 		gpios = <&msmgpio 44 0>, /* CLK */
 			<&msmgpio 43 0>, /* CMD */
 			<&msmgpio 42 0>, /* DATA0 */
@@ -933,6 +939,7 @@
 		reg-names = "hc_mem", "core_mem";
 
 		qcom,bus-width = <4>;
+		qcom,cpu-dma-latency-us = <701>;
 		gpios = <&msmgpio 44 0>, /* CLK */
 			<&msmgpio 43 0>, /* CMD */
 			<&msmgpio 42 0>, /* DATA0 */
@@ -984,20 +991,20 @@
 		qcom,pmic-arb-channel = <0>;
 	};
 
-	i2c@f9924000 { /* BLSP-1 QUP-2 */
-		cell-index = <2>;
-		compatible = "qcom,i2c-qup";
-		reg = <0xf9924000 0x1000>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		reg-names = "qup_phys_addr";
-		interrupts = <0 96 0>;
-		interrupt-names = "qup_err_intr";
-		qcom,i2c-bus-freq = <400000>;
-		qcom,i2c-src-freq = <19200000>;
-		qcom,scl-gpio = <&msmgpio 7 0>;
-		qcom,sda-gpio = <&msmgpio 6 0>;
-	};
+//	i2c@f9924000 { /* BLSP-1 QUP-2 */
+//		cell-index = <2>;
+//		compatible = "qcom,i2c-qup";
+//		reg = <0xf9924000 0x1000>;
+//		#address-cells = <1>;
+//		#size-cells = <0>;
+//		reg-names = "qup_phys_addr";
+//		interrupts = <0 96 0>;
+//		interrupt-names = "qup_err_intr";
+//		qcom,i2c-bus-freq = <400000>;
+//		qcom,i2c-src-freq = <19200000>;
+//		qcom,scl-gpio = <&msmgpio 7 0>;
+//		qcom,sda-gpio = <&msmgpio 6 0>;
+//	};
 
 	i2c@f9925000 { /* BLSP-1 QUP-3 */
 		cell-index = <3>;
@@ -1070,7 +1077,7 @@
 			<  300000 1525 >,
 			<  384000 1525 >,
 			<  600000 1525 >,
-			<  787200 3051 >,
+			<  787200 1525 >,
 			<  998400 4066 >,
 			< 1094400 4066 >,
 			< 1190400 4066 >,
@@ -1549,6 +1556,7 @@
 		qcom,hw-settle-time = <2>;
 		qcom,fast-avg-setup = <3>;
 		qcom,btm-channel-number = <0x48>;
+		qcom,meas-interval-timer-idx = <2>;
 	};
 
 	chan@8 {

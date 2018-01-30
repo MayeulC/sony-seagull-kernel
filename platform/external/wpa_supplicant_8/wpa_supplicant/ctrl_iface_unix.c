@@ -530,6 +530,15 @@ void wpa_supplicant_ctrl_iface_deinit(struct ctrl_iface_priv *priv)
 		} else
 			dir = buf;
 
+//CONN-EC-WIFI-Hotspot-ClientInfo-01*[
+//We don't remove folder of ctrl_interface(/data/misc/wifi/sockets).
+//Folder of ctrl_interface is originally removed when TURN OFF WIFI.
+//This behavior makes system can not get MAC address of connected devices of hotspot.
+//When hotspot is enabled, netd will need folder of ctrl_interface to
+//establish connection with socket wlan0 in folder /data/misc/wifi/hostapd.
+//If folder of ctrl_interface is removed, wpa_ctrl_open will fail and netd can not give
+//command STA-FIRST and STA-NEXT to hostapd through socket wlan0 in folder /data/misc/wifi/hostapd.
+#if 0
 		if (rmdir(dir) < 0) {
 			if (errno == ENOTEMPTY) {
 				wpa_printf(MSG_DEBUG, "Control interface "
@@ -541,6 +550,8 @@ void wpa_supplicant_ctrl_iface_deinit(struct ctrl_iface_priv *priv)
 					   dir, strerror(errno));
 			}
 		}
+#endif
+//CONN-EC-WIFI-Hotspot-ClientInfo-01*]
 		os_free(buf);
 	}
 
@@ -680,7 +691,7 @@ static void wpa_supplicant_global_ctrl_iface_receive(int sock, void *eloop_ctx,
 {
 	struct wpa_global *global = eloop_ctx;
 	struct ctrl_iface_global_priv *priv = sock_ctx;
-	char buf[256];
+	char buf[4096];
 	int res;
 	struct sockaddr_un from;
 	socklen_t fromlen = sizeof(from);

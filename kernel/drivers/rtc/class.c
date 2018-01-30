@@ -1,6 +1,6 @@
 /*
  * RTC subsystem, base class
- *
+ * 
  * Copyright(C) 2011-2013 Foxconn International Holdings, Ltd. All rights reserved.
  * Copyright (C) 2005 Tower Technologies
  * Author: Alessandro Zummo <a.zummo@towertech.it>

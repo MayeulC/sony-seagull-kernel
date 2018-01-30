@@ -762,6 +762,23 @@ struct p2p_config {
 	 * or 0 if not.
 	 */
 	int (*go_connected)(void *ctx, const u8 *dev_addr);
+
+	/**
+	 * is_concurrent_session_active - Check whether concurrent session is
+	 * active on other virtual interfaces
+	 * @ctx: Callback context from cb_ctx
+	 * Returns: 1 if concurrent session is active on other virtual interface
+	 * or 0 if not.
+	 */
+	int (*is_concurrent_session_active)(void *ctx);
+
+	/**
+	 * is_p2p_in_progress - Check whether P2P operation is in progress
+	 * @ctx: Callback context from cb_ctx
+	 * Returns: 1 if P2P operation (e.g., group formation) is in progress
+	 * or 0 if not.
+	 */
+	int (*is_p2p_in_progress)(void *ctx);
 };
 
 

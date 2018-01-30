@@ -2,9 +2,9 @@
  * drivers/base/power/wakeup.c - System wakeup events framework
  *
  * Copyright (c) 2010 Rafael J. Wysocki <rjw@sisk.pl>, Novell Inc.
+ * Copyright (C) 2011-2013 Foxconn International Holdings, Ltd. All rights reserved.
  *
  * This file is released under the GPLv2.
- * Copyright (C) 2011-2013 Foxconn International Holdings, Ltd. All rights reserved.
  */
 
 #include <linux/device.h>
@@ -688,7 +688,7 @@ bool pm_wakeup_pending(void)
 	return ret;
 }
 
- //CORE-BH-PMSWakelockInfo-01*[
+ //CORE-BH-PMSWakelockInfo-02*[
  #ifdef CONFIG_FIH_DUMP_WAKELOCK
  void add_pms_wakelock_info(char *pid, char *tag) 
 {
@@ -730,6 +730,7 @@ bool pm_wakeup_pending(void)
 	}	
 	strncpy(lock->tag,tag,tag_len);
 
+	lock->acquire_time = ktime_get();
 	list_add(&lock->link,&pms_locks);
 
 exit_add:	
@@ -737,7 +738,7 @@ exit_add:
 }
  EXPORT_SYMBOL(add_pms_wakelock_info);
 
- void remove_pms_wakelock_info(void)
+ void remove_pms_wakelock_info(char *pid, char * tag)
 {
 	unsigned long irqflags;
 	
@@ -745,14 +746,22 @@ exit_add:
 	
 	spin_lock_irqsave(&pms_list_lock, irqflags);
 	list_for_each_entry_safe(lock, lock_temp, &pms_locks, link) {
+		if (!strcmp(lock->tag,tag) && !strcmp(lock->pid,pid))
+		{
+
 			list_del(&lock->link);
 			kfree(lock->pid);
 			kfree(lock->tag);
 			kfree(lock);
+			goto exit_remove;
+		}
 	}
+	
+exit_remove:
 	spin_unlock_irqrestore(&pms_list_lock, irqflags);
 }
 EXPORT_SYMBOL(remove_pms_wakelock_info);
+ //CORE-BH-PMSWakelockInfo-02*]
 
 void print_active_pms_locks(void)
  {
@@ -763,7 +772,14 @@ void print_active_pms_locks(void)
 	 spin_lock_irqsave(&pms_list_lock, irqflags);
 	 
 	 list_for_each_entry(lock, &pms_locks, link) {
-		 pr_info("[PMSWL]active PMS wakelock: %s %s\n", lock->pid, lock->tag);
+	 	//CORE-BH-PMSWakelockInfo-02+[
+		ktime_t now = ktime_get();
+		ktime_t active_time = ktime_sub(now, lock->acquire_time);
+		s64 ns = ktime_to_ns(active_time);
+		s64 s = ns;			
+		ns = do_div(s, NSEC_PER_SEC);
+		pr_info("[PMSWL]active PMS wake lock: %s %s %lld.%lld secs\n", lock->pid, lock->tag, s, ns);
+		//CORE-BH-PMSWakelockInfo-02+]
 	 }
  
 	 spin_unlock_irqrestore(&pms_list_lock, irqflags);
