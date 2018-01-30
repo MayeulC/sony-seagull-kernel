@@ -1,0 +1,52 @@
+#============================================================================
+#  Name:
+#    LIB_WLAN_WAPI.MIN
+#
+#  Description:
+#    An includable component of the makefile to build the AMSS software,
+#    this file lists the source files for the WAPI Feature.
+#
+# Copyright (c) 2009 by QUALCOMM, Incorporated.  All Rights Reserved.
+# Copyright(C) 2014 Foxconn International Holdings, Ltd. All rights reserved.
+#============================================================================
+#
+#                        EDIT HISTORY FOR MODULE
+#
+# $Header:  $
+# $DateTime: $
+# $Author: $
+#
+# when       who     what, where, why
+# -------    ---     --------------------------------------------------------
+# 12/09/09   pbh     Created module
+#============================================================================
+
+WLAN_WAPI_LIB_SOURCES = \
+	wlan_wapi_sms4c.c        \
+	wlan_wapi_wpi_pcrypt.c   \
+	wlan_wapi_ecc.c          \
+	wlan_wapi_pack.c         \
+	wlan_wapi_unpack.c       \
+	wlan_wapi_x509.c         \
+	wlan_wapi_wapicert.c     \
+	wlan_wapi_waiprocess.c
+
+WLAN_WAPI_LIB_OBJS :=  $(addprefix $(LIBDIR)/, $(WLAN_WAPI_LIB_SOURCES:%.c=%.o))
+vpath %.c $(WLAN_WAPI_SRC)
+
+$(LIBDIR)/wlan_wapi.lib : $(WLAN_WAPI_LIB_OBJS)
+	@echo ------------------------------------------------------------------
+	@echo LIBRARY $@
+	@if test -f $@; then rm -f $@; fi
+	$(ARMAR) -r $@ $(WLAN_WAPI_LIB_OBJS)
+	@echo ------------------------------------------------------------------
+	@echo ------------------------------------------------------------------
+	@echo Copying WAPI library to wlan/libs
+#	@if [ ! -d $(WLAN)/libs/wapi ]; then mkdir $(WLAN)/libs/wapi; fi
+#	@if test -f $(WLAN)/libs/wlan_wapi.lib; then chmod +w $(WLAN)/libs/wapi/wlan_wapi.lib; fi
+#	@if test -f $(LIBDIR)/wlan_wapi.lib; then cp $(LIBDIR)/wlan_wapi.lib $(WLAN)/libs/wapi; fi
+#	@chmod -w   $(WLAN)/libs/wapi/wlan_wapi.lib
+	@echo ------------------------------------------------------------------
+
+LIBOBJECTS := $(WLAN_WAPI_LIB_OBJS) $(LIBOBJECTS)
+QCTLIBS := $(QCTLIBS) $(LIBDIR)/wlan_wapi.lib
