@@ -20,7 +20,7 @@
 #include "eapol_supp_sm.h"
 
 /*msec Response Timeout*/
-#define QMI_RESP_TIME_OUT 650
+#define QMI_RESP_TIME_OUT 3000 //CONN-FY-Incrace_QMI_timeout
 #define EAP_PROXY_KEYING_DATA_LEN 64
 
 typedef enum {

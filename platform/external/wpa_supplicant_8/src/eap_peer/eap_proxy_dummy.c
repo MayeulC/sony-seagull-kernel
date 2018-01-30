@@ -1091,7 +1091,7 @@ static eap_proxy_status eap_proxy_qmi_response_wait(eap_proxy_sm *eap_proxy)
 			break;
 	} while (1);
 
-	wpa_printf(MSG_DEBUG, "eap_proxy_qmi_response_wait: Wait done after %d "
+	wpa_printf(MSG_WARNING, "eap_proxy_qmi_response_wait: Wait done after %d "
 		   "iterations: qmi_state=%d", count,
 		   eap_proxy->qmi_state);
 
